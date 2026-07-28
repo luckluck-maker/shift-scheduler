@@ -1,0 +1,35 @@
+# Build output
+target/
+client/dist/
+client/.vite/
+*.class
+*.jar
+*.war
+
+# Dependencies
+client/node_modules/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# Logs and runtime data
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# Personal working notes
+notes/
