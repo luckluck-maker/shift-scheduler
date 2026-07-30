@@ -1,0 +1,51 @@
+### Health check (open)
+GET http://localhost:8080/api/health
+
+### Login as manager
+# @name loginManager
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana", "password": "password123"}
+
+> {% client.global.set("managerToken", response.body.token); %}
+
+### Login as employee
+# @name loginEmployee
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "maya", "password": "password123"}
+
+> {% client.global.set("employeeToken", response.body.token); %}
+
+### Current user - manager
+GET http://localhost:8080/api/auth/me
+Authorization: Bearer {{managerToken}}
+
+### Current user - no token, expect 401
+GET http://localhost:8080/api/auth/me
+
+### Manager endpoint with manager token, expect 200
+GET http://localhost:8080/api/debug/manager-only
+Authorization: Bearer {{managerToken}}
+
+### Manager endpoint with employee token, expect 403
+GET http://localhost:8080/api/debug/manager-only
+Authorization: Bearer {{employeeToken}}
+
+### Employee endpoint with employee token, expect 200
+GET http://localhost:8080/api/debug/employee-only
+Authorization: Bearer {{employeeToken}}
+
+### Wrong password, expect 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana", "password": "wrong"}
+
+### Disabled account, expect 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "avi", "password": "password123"}
