@@ -49,3 +49,43 @@ POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "avi", "password": "password123"}
+
+### List positions
+GET http://localhost:8080/api/job-positions
+Authorization: Bearer {{managerToken}}
+
+### Create position
+POST http://localhost:8080/api/job-positions
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{"name": "Team lead"}
+
+### Duplicate name, expect 409
+POST http://localhost:8080/api/job-positions
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{"name": "Support agent"}
+
+### Empty name, expect 400
+POST http://localhost:8080/api/job-positions
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{"name": ""}
+
+### Employee tries to create, expect 403
+POST http://localhost:8080/api/job-positions
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{"name": "Hacker"}
+
+### Delete position in use, expect 409
+DELETE http://localhost:8080/api/job-positions/1
+Authorization: Bearer {{managerToken}}
+
+### Not found, expect 404
+GET http://localhost:8080/api/job-positions/999
+Authorization: Bearer {{managerToken}}
