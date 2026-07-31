@@ -1,48 +1,19 @@
-### Health check (open)
+### ============================================================
+### 1 — No session
+### Run these before logging in
+### ============================================================
+
+### Health check, open endpoint
 GET http://localhost:8080/api/health
 
-### Login as manager
-# @name loginManager
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{"username": "dana", "password": "password123"}
-
-> {% client.global.set("managerToken", response.body.token); %}
-
-### Login as employee
-# @name loginEmployee
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{"username": "maya", "password": "password123"}
-
-> {% client.global.set("employeeToken", response.body.token); %}
-
-### Current user - manager
+### Current user without a session, expect 401
 GET http://localhost:8080/api/auth/me
-Authorization: Bearer {{managerToken}}
-
-### Current user - no token, expect 401
-GET http://localhost:8080/api/auth/me
-
-### Manager endpoint with manager token, expect 200
-GET http://localhost:8080/api/debug/manager-only
-Authorization: Bearer {{managerToken}}
-
-### Manager endpoint with employee token, expect 403
-GET http://localhost:8080/api/debug/manager-only
-Authorization: Bearer {{employeeToken}}
-
-### Employee endpoint with employee token, expect 200
-GET http://localhost:8080/api/debug/employee-only
-Authorization: Bearer {{employeeToken}}
 
 ### Wrong password, expect 401
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
-{"username": "dana", "password": "wrong"}
+{"username": "dana", "password": "password123X"}
 
 ### Disabled account, expect 401
 POST http://localhost:8080/api/auth/login
@@ -50,86 +21,76 @@ Content-Type: application/json
 
 {"username": "avi", "password": "password123"}
 
+
+### ============================================================
+### 2 — Manager session
+### ============================================================
+
+### Login as manager
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana", "password": "password123"}
+
+### Current user, expect 200 MANAGER
+GET http://localhost:8080/api/auth/me
+
+### Manager endpoint, expect 200
+GET http://localhost:8080/api/debug/manager-only
+
+### --- Job positions ---
+
 ### List positions
 GET http://localhost:8080/api/job-positions
-Authorization: Bearer {{managerToken}}
 
 ### Create position
 POST http://localhost:8080/api/job-positions
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"name": "Team lead"}
 
 ### Duplicate name, expect 409
 POST http://localhost:8080/api/job-positions
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"name": "Support agent"}
 
 ### Empty name, expect 400
 POST http://localhost:8080/api/job-positions
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"name": ""}
 
-### Employee tries to create, expect 403
-POST http://localhost:8080/api/job-positions
-Authorization: Bearer {{employeeToken}}
-Content-Type: application/json
-
-{"name": "Hacker"}
-
 ### Delete position in use, expect 409
 DELETE http://localhost:8080/api/job-positions/1
-Authorization: Bearer {{managerToken}}
 
 ### Not found, expect 404
 GET http://localhost:8080/api/job-positions/999
-Authorization: Bearer {{managerToken}}
+
+### --- Shift types ---
 
 ### List shift types
 GET http://localhost:8080/api/shift-types
-Authorization: Bearer {{managerToken}}
 
 ### Create a shift crossing midnight
 POST http://localhost:8080/api/shift-types
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"name": "Late night", "startTime": "22:00", "endTime": "06:00"}
 
 ### Same start and end, expect 400
 POST http://localhost:8080/api/shift-types
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"name": "Broken", "startTime": "08:00", "endTime": "08:00"}
 
-### Delete a shift type, expect 204
-DELETE http://localhost:8080/api/shift-types/4
-Authorization: Bearer {{managerToken}}
-
-### Employee tries to create, expect 403
-POST http://localhost:8080/api/shift-types
-Authorization: Bearer {{employeeToken}}
-Content-Type: application/json
-
-{"name": "Nope", "startTime": "10:00", "endTime": "18:00"}
+### --- Employees ---
 
 ### List employees
 GET http://localhost:8080/api/employees
-Authorization: Bearer {{managerToken}}
-
-### Employee tries to list, expect 403
-GET http://localhost:8080/api/employees
-Authorization: Bearer {{employeeToken}}
 
 ### Create employee
 POST http://localhost:8080/api/employees
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"fullName": "Roni Katz", "username": "roni", "password": "password123",
@@ -137,7 +98,6 @@ Content-Type: application/json
 
 ### Duplicate username, expect 409
 POST http://localhost:8080/api/employees
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"fullName": "Fake", "username": "maya", "password": "password123",
@@ -145,7 +105,6 @@ Content-Type: application/json
 
 ### Non-existent job position, expect 404
 POST http://localhost:8080/api/employees
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"fullName": "Ghost", "username": "ghost", "password": "password123",
@@ -153,7 +112,6 @@ Content-Type: application/json
 
 ### Short password, expect 400
 POST http://localhost:8080/api/employees
-Authorization: Bearer {{managerToken}}
 Content-Type: application/json
 
 {"fullName": "Short", "username": "shorty", "password": "123",
@@ -161,10 +119,70 @@ Content-Type: application/json
 
 ### Deactivate the only manager, expect 400
 DELETE http://localhost:8080/api/employees/1
-Authorization: Bearer {{managerToken}}
 
-### Login as the new employee
+
+### ============================================================
+### 3 — Employee session
+### Logging in as an employee replaces the manager cookie
+### ============================================================
+
+### Login as employee
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "maya", "password": "password123"}
+
+### Current user, expect 200 EMPLOYEE
+GET http://localhost:8080/api/auth/me
+
+### Employee endpoint, expect 200
+GET http://localhost:8080/api/debug/employee-only
+
+### Manager endpoint, expect 403
+GET http://localhost:8080/api/debug/manager-only
+
+### List employees, expect 403
+GET http://localhost:8080/api/employees
+
+### Create position, expect 403
+POST http://localhost:8080/api/job-positions
+Content-Type: application/json
+
+{"name": "Hacker"}
+
+### Create shift type, expect 403
+POST http://localhost:8080/api/shift-types
+Content-Type: application/json
+
+{"name": "Nope", "startTime": "10:00", "endTime": "18:00"}
+
+
+### ============================================================
+### 4 — Logout
+### ============================================================
+
+### Log out, expect 204
+POST http://localhost:8080/api/auth/logout
+
+### Current user after logout, expect 401
+GET http://localhost:8080/api/auth/me
+
+### Protected endpoint after logout, expect 401
+GET http://localhost:8080/api/job-positions
+
+
+### ============================================================
+### 5 — Employee created through the API can log in
+### ============================================================
+
+### Login as the employee created above
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "roni", "password": "password123"}
+
+### Current user, expect 200 with employeeId of roni
+GET http://localhost:8080/api/auth/me
+
+### Log out
+POST http://localhost:8080/api/auth/logout

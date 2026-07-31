@@ -35,7 +35,7 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest request) {
+    public LoginResult login(LoginRequest request) {
         Optional<Employee> found = employeeRepository.findByUsername(request.username());
 
         if (found.isEmpty()) {
@@ -53,13 +53,14 @@ public class AuthService {
             throw new InvalidCredentialsException("Account is disabled");
         }
 
-        return new LoginResponse(
-                issueToken(employee),
+        LoginResponse user = new LoginResponse(
                 employee.getId(),
                 employee.getUsername(),
                 employee.getFullName(),
                 employee.getRole().name()
         );
+
+        return new LoginResult(issueToken(employee), user);
     }
 
     private String issueToken(Employee employee) {
