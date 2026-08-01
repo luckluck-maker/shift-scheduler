@@ -1,6 +1,5 @@
 package com.shiftscheduler.assignment;
 
-import com.shiftscheduler.auth.CurrentUserProvider;
 import com.shiftscheduler.domain.Assignment;
 import com.shiftscheduler.domain.Employee;
 import com.shiftscheduler.domain.JobPosition;
@@ -42,7 +41,6 @@ public class AssignmentService {
     private final ScheduleRepository scheduleRepository;
     private final ScheduleRules rules;
     private final ScheduleGuard guard;
-    private final CurrentUserProvider currentUser;
 
     public AssignmentService(AssignmentRepository assignmentRepository,
                              ShiftRepository shiftRepository,
@@ -52,8 +50,7 @@ public class AssignmentService {
                              ShiftPreferenceRepository preferenceRepository,
                              ScheduleRepository scheduleRepository,
                              ScheduleRules rules,
-                             ScheduleGuard guard,
-                             CurrentUserProvider currentUser) {
+                             ScheduleGuard guard) {
         this.assignmentRepository = assignmentRepository;
         this.shiftRepository = shiftRepository;
         this.requirementRepository = requirementRepository;
@@ -63,7 +60,6 @@ public class AssignmentService {
         this.scheduleRepository = scheduleRepository;
         this.rules = rules;
         this.guard = guard;
-        this.currentUser = currentUser;
     }
 
     @Transactional
@@ -190,7 +186,7 @@ public class AssignmentService {
 
     @Transactional(readOnly = true)
     public List<ShiftCoverage> coverage(Long scheduleId) {
-        Schedule schedule = requireVisibleSchedule(scheduleId);
+        Schedule schedule = guard.require(scheduleId);
 
         List<Shift> shifts = shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(schedule.getId());
 
@@ -208,17 +204,6 @@ public class AssignmentService {
                         shift,
                         requirementsByShift.getOrDefault(shift.getId(), List.of()),
                         assignmentsByShift.getOrDefault(shift.getId(), List.of())))
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<AssignmentResponse> myAssignments(Long scheduleId) {
-        requireVisibleSchedule(scheduleId);
-
-        return assignmentRepository
-                .findByShiftScheduleIdAndEmployeeId(scheduleId, currentUser.employeeId()).stream()
-                .sorted((a, b) -> a.getShift().getShiftDate().compareTo(b.getShift().getShiftDate()))
-                .map(assignment -> toResponse(assignment, List.of(), List.of()))
                 .toList();
     }
 
@@ -333,16 +318,6 @@ public class AssignmentService {
                 fullyStaffed,
                 positions,
                 assignmentResponses);
-    }
-
-    private Schedule requireVisibleSchedule(Long id) {
-        Schedule schedule = guard.require(id);
-
-        if (!currentUser.isManager() && schedule.getStatus() != ScheduleStatus.PUBLISHED) {
-            throw new ResourceNotFoundException("Schedule " + id + " not found");
-        }
-
-        return schedule;
     }
 
     private AssignmentResponse toResponse(Assignment assignment,

@@ -1,6 +1,7 @@
 package com.shiftscheduler.schedule;
 
 import com.shiftscheduler.auth.CurrentUserProvider;
+import com.shiftscheduler.domain.Assignment;
 import com.shiftscheduler.domain.JobPosition;
 import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
@@ -8,6 +9,7 @@ import com.shiftscheduler.domain.Shift;
 import com.shiftscheduler.domain.ShiftPreference;
 import com.shiftscheduler.domain.ShiftRequirement;
 import com.shiftscheduler.domain.ShiftType;
+import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.JobPositionRepository;
 import com.shiftscheduler.repository.ScheduleRepository;
 import com.shiftscheduler.repository.ShiftPreferenceRepository;
@@ -42,6 +44,7 @@ public class ScheduleService {
     private final ShiftTypeRepository shiftTypeRepository;
     private final JobPositionRepository jobPositionRepository;
     private final ShiftPreferenceRepository preferenceRepository;
+    private final AssignmentRepository assignmentRepository;
     private final ScheduleGuard guard;
     private final CurrentUserProvider currentUser;
 
@@ -51,6 +54,7 @@ public class ScheduleService {
                            ShiftTypeRepository shiftTypeRepository,
                            JobPositionRepository jobPositionRepository,
                            ShiftPreferenceRepository preferenceRepository,
+                           AssignmentRepository assignmentRepository,
                            ScheduleGuard guard,
                            CurrentUserProvider currentUser) {
         this.scheduleRepository = scheduleRepository;
@@ -59,16 +63,17 @@ public class ScheduleService {
         this.shiftTypeRepository = shiftTypeRepository;
         this.jobPositionRepository = jobPositionRepository;
         this.preferenceRepository = preferenceRepository;
+        this.assignmentRepository = assignmentRepository;
         this.guard = guard;
         this.currentUser = currentUser;
     }
 
     @Transactional(readOnly = true)
     public List<ScheduleSummaryResponse> findAll() {
-        List<Schedule> schedules = currentUser.isManager()
-                ? scheduleRepository.findAllByOrderByWeekStartDesc()
-                : scheduleRepository.findByStatusInOrderByWeekStartDesc(
-                List.of(ScheduleStatus.COLLECTING, ScheduleStatus.PUBLISHED));
+        // The list itself is not sensitive: it only says which weeks exist,
+        // which an employee already knows from submitting on them. What each
+        // role may open is decided per endpoint.
+        List<Schedule> schedules = scheduleRepository.findAllByOrderByWeekStartDesc();
 
         return schedules.stream()
                 .map(schedule -> new ScheduleSummaryResponse(
@@ -108,10 +113,6 @@ public class ScheduleService {
     public MyWeekResponse myWeek(Long scheduleId) {
         Schedule schedule = guard.require(scheduleId);
 
-        if (!currentUser.isManager() && schedule.getStatus() == ScheduleStatus.DRAFT) {
-            throw new ResourceNotFoundException("Schedule " + scheduleId + " not found");
-        }
-
         Map<Long, ShiftPreference> preferences = preferenceRepository
                 .findByShiftScheduleIdAndEmployeeIdOrderByShiftShiftDateAscIdAsc(
                         scheduleId, currentUser.employeeId())
@@ -131,6 +132,66 @@ public class ScheduleService {
                 schedule.getStatus().name(),
                 schedule.getStatus() == ScheduleStatus.COLLECTING,
                 shifts);
+    }
+
+    @Transactional(readOnly = true)
+    public RosterResponse roster(Long scheduleId) {
+        Schedule schedule = guard.require(scheduleId);
+
+        boolean published = schedule.getStatus() == ScheduleStatus.PUBLISHED;
+        boolean visible = published || currentUser.isManager();
+
+        // Before publishing the screen still opens, it just has nothing in it.
+        // A 404 would look like an error to the client; an empty week reads as
+        // "not out yet" and lets the employee keep browsing.
+        List<RosterShift> shifts = visible ? buildRoster(scheduleId) : List.of();
+
+        return new RosterResponse(
+                schedule.getId(),
+                schedule.getWeekStart(),
+                weekEnd(schedule),
+                schedule.getStatus().name(),
+                published,
+                shifts);
+    }
+
+    private List<RosterShift> buildRoster(Long scheduleId) {
+        Long me = currentUser.employeeId();
+
+        Map<Long, List<Assignment>> byShift = assignmentRepository
+                .findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(scheduleId).stream()
+                .collect(Collectors.groupingBy(assignment -> assignment.getShift().getId()));
+
+        return shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(scheduleId).stream()
+                .map(shift -> toRosterShift(shift, byShift.getOrDefault(shift.getId(), List.of()), me))
+                .toList();
+    }
+
+    private RosterShift toRosterShift(Shift shift, List<Assignment> assignments, Long me) {
+        ShiftType type = shift.getShiftType();
+
+        List<RosterAssignment> people = assignments.stream()
+                .map(assignment -> {
+                    var employee = assignment.getEmployee();
+                    return new RosterAssignment(
+                            employee.getId(),
+                            employee.getFullName(),
+                            employee.getJobPosition().getName(),
+                            employee.getId().equals(me));
+                })
+                .toList();
+
+        boolean assignedToMe = people.stream().anyMatch(RosterAssignment::isMe);
+
+        return new RosterShift(
+                shift.getId(),
+                shift.getShiftDate(),
+                type.getName(),
+                type.getStartTime(),
+                type.getEndTime(),
+                type.isCrossesMidnight(),
+                assignedToMe,
+                people);
     }
 
     @Transactional

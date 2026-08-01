@@ -17,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@PreAuthorize("hasRole('MANAGER')")
 public class AssignmentController {
 
     private final AssignmentService assignmentService;
@@ -30,20 +31,13 @@ public class AssignmentController {
         return assignmentService.coverage(scheduleId);
     }
 
-    @GetMapping("/schedules/{scheduleId}/my-shifts")
-    public List<AssignmentResponse> myShifts(@PathVariable Long scheduleId) {
-        return assignmentService.myAssignments(scheduleId);
-    }
-
     @DeleteMapping("/schedules/{scheduleId}/assignments")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('MANAGER')")
     public void clearAll(@PathVariable Long scheduleId) {
         assignmentService.clearAll(scheduleId);
     }
 
     @GetMapping("/shifts/{shiftId}/available-employees")
-    @PreAuthorize("hasRole('MANAGER')")
     public List<AvailableEmployeeResponse> availableEmployees(
             @PathVariable Long shiftId,
             @RequestParam(required = false) Long jobPositionId) {
@@ -52,14 +46,12 @@ public class AssignmentController {
 
     @PostMapping("/assignments")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('MANAGER')")
     public AssignmentResponse create(@Valid @RequestBody AssignmentCreateRequest request) {
         return assignmentService.create(request);
     }
 
     @DeleteMapping("/assignments/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('MANAGER')")
     public void delete(@PathVariable Long id) {
         assignmentService.delete(id);
     }
