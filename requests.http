@@ -222,6 +222,43 @@ Content-Type: application/json
 
 {"requirements": [{"jobPositionId": 2, "requiredCount": 1}]}
 
+### --- Leaves ---
+
+### Create leave
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+
+{"employeeId": 4, "startDate": "2026-08-10", "endDate": "2026-08-12", "type": "VACATION"}
+
+### Overlapping leave, expect 409
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+
+{"employeeId": 4, "startDate": "2026-08-12", "endDate": "2026-08-14", "type": "SICK"}
+
+### End before start, expect 400
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+
+{"employeeId": 4, "startDate": "2026-08-20", "endDate": "2026-08-18", "type": "SICK"}
+
+### List all leaves
+GET http://localhost:8080/api/leaves
+
+### --- Preferences as manager ---
+
+### Manager submits on behalf of employee 3
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 2, "type": "CANNOT", "reason": "Family event", "employeeId": 3}
+
+### All preferences for the schedule
+GET http://localhost:8080/api/shift-preferences?scheduleId=1
+
+### Filter by one employee
+GET http://localhost:8080/api/shift-preferences?scheduleId=1&employeeId=3
+
 
 ### ============================================================
 ### 3 — Employee session
@@ -273,6 +310,32 @@ GET http://localhost:8080/api/schedules
 ### Open the draft directly, expect 404
 GET http://localhost:8080/api/schedules/1
 
+### Employee submits own preference
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 5, "type": "PREFERS_NOT", "reason": "Long commute"}
+
+### Same shift twice, expect 409
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 5, "type": "CANNOT"}
+
+### Submit for someone else, expect 403
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 6, "type": "CANNOT", "employeeId": 4}
+
+### Own preferences only
+GET http://localhost:8080/api/shift-preferences?scheduleId=1
+
+### Filter by someone else, the parameter is ignored
+GET http://localhost:8080/api/shift-preferences?scheduleId=1&employeeId=3
+
+### List leaves, expect 403
+GET http://localhost:8080/api/leaves
 
 ### ============================================================
 ### 4 — Publishing changes what the employee can see
@@ -311,6 +374,11 @@ GET http://localhost:8080/api/schedules
 ### And the detail opens, expect 200
 GET http://localhost:8080/api/schedules/1
 
+### Submit after publish, expect 409
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 9, "type": "CANNOT"}
 
 ### ============================================================
 ### 5 — Employee created through the API can log in
