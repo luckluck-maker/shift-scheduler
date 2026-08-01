@@ -1,4 +1,0 @@
-CREATE TABLE flyway_smoke_test (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    note VARCHAR(100) NOT NULL
-);

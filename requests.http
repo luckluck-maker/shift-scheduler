@@ -1,132 +1,147 @@
-### ============================================================
-### 1 — No session
-### Run these first, before any login
-### ============================================================
+### ###########################################################
+###
+###  Shift Scheduler — API checks
+###
+###  Run top to bottom, after:
+###      docker compose down -v
+###      docker compose up -d
+###
+###  Section 1 runs with no session.
+###  Sections 2 and 4 run as the manager (dana).
+###  Sections 3 and 5 run as an employee (maya).
+###  Section 6 logs out and leaves the cookie jar clean.
+###
+### ###########################################################
 
-### Health check, open endpoint
+
+### ===========================================================
+### 1 — NO SESSION
+### ===========================================================
+
+### 1.1 Health check — expect 200
 GET http://localhost:8080/api/health
 
-### Current user without a session, expect 401
+### 1.2 Current user without a session — expect 401
 GET http://localhost:8080/api/auth/me
 
-### Wrong password, expect 401
+### 1.3 Wrong password — expect 401
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "dana", "password": "password123X"}
 
-### Disabled account, expect 401
+### 1.4 Disabled account — expect 401
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "avi", "password": "password123"}
 
 
-### ============================================================
-### 2 — Manager session
-### ============================================================
+### ===========================================================
+### 2 — MANAGER SESSION
+### ===========================================================
 
-### Login as manager
+### 2.0 Log in as manager — expect 200
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "dana", "password": "password123"}
 
-### Current user, expect 200 MANAGER
+### 2.1 Current user — expect 200, role MANAGER
 GET http://localhost:8080/api/auth/me
 
-### Manager endpoint, expect 200
+### 2.2 Manager-only endpoint — expect 200
 GET http://localhost:8080/api/debug/manager-only
 
 
-### --- Job positions ---
+### ----- 2.3 JOB POSITIONS -----
 
-### List positions
+### 2.3.1 List — expect 200, three positions
 GET http://localhost:8080/api/job-positions
 
-### Create position
+### 2.3.2 Create — expect 201
 POST http://localhost:8080/api/job-positions
 Content-Type: application/json
 
 {"name": "Team lead"}
 
-### Duplicate name, expect 409
+### 2.3.3 Duplicate name — expect 409
 POST http://localhost:8080/api/job-positions
 Content-Type: application/json
 
 {"name": "Support agent"}
 
-### Empty name, expect 400
+### 2.3.4 Empty name — expect 400
 POST http://localhost:8080/api/job-positions
 Content-Type: application/json
 
 {"name": ""}
 
-### Delete position in use, expect 409
+### 2.3.5 Delete a position that employees use — expect 409
 DELETE http://localhost:8080/api/job-positions/1
 
-### Not found, expect 404
+### 2.3.6 Unknown id — expect 404
 GET http://localhost:8080/api/job-positions/999
 
 
-### --- Shift types ---
+### ----- 2.4 SHIFT TYPES -----
 
-### List shift types
+### 2.4.1 List — expect 200, Night has crossesMidnight true and 8 hours
 GET http://localhost:8080/api/shift-types
 
-### Create a shift crossing midnight
+### 2.4.2 Create one that crosses midnight — expect 201, durationHours 8
 POST http://localhost:8080/api/shift-types
 Content-Type: application/json
 
 {"name": "Late night", "startTime": "22:00", "endTime": "06:00"}
 
-### Same start and end, expect 400
+### 2.4.3 Same start and end — expect 400
 POST http://localhost:8080/api/shift-types
 Content-Type: application/json
 
 {"name": "Broken", "startTime": "08:00", "endTime": "08:00"}
 
 
-### --- Employees ---
+### ----- 2.5 EMPLOYEES -----
 
-### List employees
+### 2.5.1 List — expect 200, ten employees
 GET http://localhost:8080/api/employees
 
-### Create employee
+### 2.5.2 Create — expect 201
 POST http://localhost:8080/api/employees
 Content-Type: application/json
 
 {"fullName": "Roni Katz", "username": "roni", "password": "password123",
   "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 2}
 
-### Duplicate username, expect 409
+### 2.5.3 Duplicate username — expect 409
 POST http://localhost:8080/api/employees
 Content-Type: application/json
 
 {"fullName": "Fake", "username": "maya", "password": "password123",
   "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 2}
 
-### Non-existent job position, expect 404
+### 2.5.4 Unknown job position — expect 404
 POST http://localhost:8080/api/employees
 Content-Type: application/json
 
 {"fullName": "Ghost", "username": "ghost", "password": "password123",
   "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 999}
 
-### Short password, expect 400
+### 2.5.5 Password too short — expect 400
 POST http://localhost:8080/api/employees
 Content-Type: application/json
 
 {"fullName": "Short", "username": "shorty", "password": "123",
   "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 2}
 
-### Deactivate the only manager, expect 400
+### 2.5.6 Deactivate the only manager — expect 400
 DELETE http://localhost:8080/api/employees/1
 
 
-### --- Schedules ---
+### ----- 2.6 SCHEDULES -----
 
-### Create a work week, expect 201 with 21 shifts
+### 2.6.1 Create the week of 9 Aug — expect 201, 21 shifts, status DRAFT
 POST http://localhost:8080/api/schedules
 Content-Type: application/json
 
@@ -146,13 +161,13 @@ Content-Type: application/json
   ]
 }
 
-### List schedules as manager, expect the draft
+### 2.6.2 List — expect 200, one schedule with shiftCount 21
 GET http://localhost:8080/api/schedules
 
-### Schedule detail, expect 21 shifts and status DRAFT
+### 2.6.3 Detail — expect 200, shifts from 2026-08-09 to 2026-08-15
 GET http://localhost:8080/api/schedules/1
 
-### Duplicate week, expect 409
+### 2.6.4 Same week again — expect 409
 POST http://localhost:8080/api/schedules
 Content-Type: application/json
 
@@ -161,7 +176,16 @@ Content-Type: application/json
   "shifts": [{ "shiftTypeId": 1, "requirements": [{"jobPositionId": 2, "requiredCount": 1}] }]
 }
 
-### Unknown shift type, expect 404
+### 2.6.5 Week that does not start on Sunday — expect 400
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+
+{
+  "weekStart": "2026-08-18",
+  "shifts": [{ "shiftTypeId": 1, "requirements": [{"jobPositionId": 2, "requiredCount": 1}] }]
+}
+
+### 2.6.6 Unknown shift type — expect 404
 POST http://localhost:8080/api/schedules
 Content-Type: application/json
 
@@ -170,7 +194,7 @@ Content-Type: application/json
   "shifts": [{ "shiftTypeId": 999, "requirements": [{"jobPositionId": 2, "requiredCount": 1}] }]
 }
 
-### Unknown job position, expect 404
+### 2.6.7 Unknown job position — expect 404
 POST http://localhost:8080/api/schedules
 Content-Type: application/json
 
@@ -179,7 +203,7 @@ Content-Type: application/json
   "shifts": [{ "shiftTypeId": 1, "requirements": [{"jobPositionId": 999, "requiredCount": 1}] }]
 }
 
-### Same shift type twice, expect 400
+### 2.6.8 Same shift type twice — expect 400
 POST http://localhost:8080/api/schedules
 Content-Type: application/json
 
@@ -191,13 +215,7 @@ Content-Type: application/json
   ]
 }
 
-### Empty shift list, expect 400
-POST http://localhost:8080/api/schedules
-Content-Type: application/json
-
-{"weekStart": "2026-09-06", "shifts": []}
-
-### Adjust requirements on a single shift, expect 200
+### 2.6.9 Adjust requirements on shift 1 — expect 200
 PUT http://localhost:8080/api/schedules/1/shifts/1/requirements
 Content-Type: application/json
 
@@ -207,7 +225,7 @@ Content-Type: application/json
   {"jobPositionId": 3, "requiredCount": 1}
 ]}
 
-### Same job position twice, expect 400
+### 2.6.10 Same job position twice — expect 400
 PUT http://localhost:8080/api/schedules/1/shifts/1/requirements
 Content-Type: application/json
 
@@ -216,194 +234,323 @@ Content-Type: application/json
   {"jobPositionId": 2, "requiredCount": 2}
 ]}
 
-### Shift that belongs to another schedule, expect 400 or 404
+### 2.6.11 Unknown shift — expect 404
 PUT http://localhost:8080/api/schedules/1/shifts/999/requirements
 Content-Type: application/json
 
 {"requirements": [{"jobPositionId": 2, "requiredCount": 1}]}
 
-### --- Leaves ---
+### 2.6.12 Copy the structure into the next week — expect 201, 21 shifts
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
 
-### Create leave
+{"weekStart": "2026-08-16"}
+
+
+### ----- 2.7 LEAVES -----
+
+### 2.7.1 Omer is on leave 10-12 Aug — expect 201
 POST http://localhost:8080/api/leaves
 Content-Type: application/json
 
 {"employeeId": 4, "startDate": "2026-08-10", "endDate": "2026-08-12", "type": "VACATION"}
 
-### Overlapping leave, expect 409
+### 2.7.2 Overlapping leave for the same employee — expect 409
 POST http://localhost:8080/api/leaves
 Content-Type: application/json
 
 {"employeeId": 4, "startDate": "2026-08-12", "endDate": "2026-08-14", "type": "SICK"}
 
-### End before start, expect 400
+### 2.7.3 End before start — expect 400
 POST http://localhost:8080/api/leaves
 Content-Type: application/json
 
 {"employeeId": 4, "startDate": "2026-08-20", "endDate": "2026-08-18", "type": "SICK"}
 
-### List all leaves
+### 2.7.4 List — expect 200, one leave
 GET http://localhost:8080/api/leaves
 
-### --- Preferences as manager ---
 
-### Manager submits on behalf of employee 3
+### ----- 2.8 PREFERENCES ON BEHALF OF AN EMPLOYEE -----
+
+### 2.8.1 Maya cannot work shift 2 — expect 201
 POST http://localhost:8080/api/shift-preferences
 Content-Type: application/json
 
 {"shiftId": 2, "type": "CANNOT", "reason": "Family event", "employeeId": 3}
 
-### All preferences for the schedule
+### 2.8.2 All preferences in the schedule — expect 200, one entry
 GET http://localhost:8080/api/shift-preferences?scheduleId=1
 
-### Filter by one employee
+### 2.8.3 Filtered to one employee — expect 200, same entry
 GET http://localhost:8080/api/shift-preferences?scheduleId=1&employeeId=3
 
 
-### ============================================================
-### 3 — Employee session
-### Logging in as an employee replaces the manager cookie
-### ============================================================
+### ----- 2.9 MANUAL ASSIGNMENT -----
 
-### Login as employee
+### 2.9.1 Coverage before assigning — expect every shift missing staff
+GET http://localhost:8080/api/schedules/1/coverage
+
+### 2.9.2 Who can work shift 1 — expect Omer available, Maya not flagged
+GET http://localhost:8080/api/shifts/1/available-employees
+
+### 2.9.3 Support agents only — expect the list filtered
+GET http://localhost:8080/api/shifts/1/available-employees?jobPositionId=2
+
+### 2.9.4 Who can work shift 2 — expect Maya blocked, reason "Marked as unavailable"
+GET http://localhost:8080/api/shifts/2/available-employees
+
+### 2.9.5 Assign Maya to shift 1 — expect 201, no warnings
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 1, "employeeId": 3, "override": false}
+
+### 2.9.6 Assign Omer to shift 4, a day he is on leave
+###       expect 409 with overridable EMPLOYEE_ON_LEAVE
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 4, "employeeId": 4, "override": false}
+
+### 2.9.7 The same, confirmed — expect 201 and overridesApplied
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 4, "employeeId": 4, "override": true}
+
+### 2.9.8 The leave is now split around 10 Aug — expect two ranges
+GET http://localhost:8080/api/leaves
+
+### 2.9.9 Assign Eitan to shift 3, the night of 9 Aug — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 3, "employeeId": 6, "override": false}
+
+### 2.9.10 Assign Eitan to the morning right after
+###        expect 409, blocking REST_PERIOD, empty overridable
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 4, "employeeId": 6, "override": false}
+
+### 2.9.11 The same with override — still 409, blocking cannot be bypassed
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 4, "employeeId": 6, "override": true}
+
+### 2.9.12 Assign Noa, contracted for 24h, to shift 1 — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 1, "employeeId": 7, "override": false}
+
+### 2.9.13 Second shift, Monday — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 4, "employeeId": 7, "override": false}
+
+### 2.9.14 Third shift, Tuesday — expect 201, she is now at 24h
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 7, "employeeId": 7, "override": false}
+
+### 2.9.15 Fourth shift would take her to 32h
+###        expect 409, overridable MAX_WEEKLY_HOURS
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 10, "employeeId": 7, "override": false}
+
+### 2.9.16 Confirmed as overtime — expect 201, overridesApplied is empty
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 10, "employeeId": 7, "override": true}
+
+### 2.9.17 Coverage after assigning — shift 1 should be one agent closer
+GET http://localhost:8080/api/schedules/1/coverage
+
+### 2.9.18 Unknown assignment — expect 404
+DELETE http://localhost:8080/api/assignments/999
+
+
+### ===========================================================
+### 3 — EMPLOYEE SESSION
+### Logging in as maya replaces the manager cookie
+### ===========================================================
+
+### 3.0 Log in as employee — expect 200
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "maya", "password": "password123"}
 
-### Current user, expect 200 EMPLOYEE
+### 3.1 Current user — expect 200, role EMPLOYEE
 GET http://localhost:8080/api/auth/me
 
-### Employee endpoint, expect 200
+### 3.2 Employee-only endpoint — expect 200
 GET http://localhost:8080/api/debug/employee-only
 
-### Manager endpoint, expect 403
+
+### ----- 3.3 EVERYTHING THAT SHOULD BE REFUSED -----
+
+### 3.3.1 Manager-only endpoint — expect 403
 GET http://localhost:8080/api/debug/manager-only
 
-### List employees, expect 403
+### 3.3.2 List employees — expect 403
 GET http://localhost:8080/api/employees
 
-### Create position, expect 403
+### 3.3.3 Create a job position — expect 403
 POST http://localhost:8080/api/job-positions
 Content-Type: application/json
 
 {"name": "Hacker"}
 
-### Create shift type, expect 403
+### 3.3.4 Create a shift type — expect 403
 POST http://localhost:8080/api/shift-types
 Content-Type: application/json
 
 {"name": "Nope", "startTime": "10:00", "endTime": "18:00"}
 
-### Create a schedule, expect 403
+### 3.3.5 Create a schedule — expect 403
 POST http://localhost:8080/api/schedules
 Content-Type: application/json
 
-{
-  "weekStart": "2026-10-04",
-  "shifts": [{ "shiftTypeId": 1, "requirements": [{"jobPositionId": 2, "requiredCount": 1}] }]
-}
+{"weekStart": "2026-10-04", "shifts": [
+  {"shiftTypeId": 1, "requirements": [{"jobPositionId": 2, "requiredCount": 1}]}
+]}
 
-### List schedules while the only one is a draft, expect an empty array
+### 3.3.6 List leaves — expect 403
+GET http://localhost:8080/api/leaves
+
+### 3.3.7 Assign someone — expect 403
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 6, "employeeId": 3, "override": false}
+
+### 3.3.8 Ask who is available — expect 403
+GET http://localhost:8080/api/shifts/1/available-employees
+
+
+### ----- 3.4 A DRAFT SCHEDULE IS INVISIBLE -----
+
+### 3.4.1 List schedules — expect 200 and an empty array
 GET http://localhost:8080/api/schedules
 
-### Open the draft directly, expect 404
+### 3.4.2 Open the draft directly — expect 404
 GET http://localhost:8080/api/schedules/1
 
-### Employee submits own preference
+### 3.4.3 Coverage of the draft — expect 404
+GET http://localhost:8080/api/schedules/1/coverage
+
+
+### ----- 3.5 OWN PREFERENCES -----
+
+### 3.5.1 Submit for shift 5 — expect 201
 POST http://localhost:8080/api/shift-preferences
 Content-Type: application/json
 
 {"shiftId": 5, "type": "PREFERS_NOT", "reason": "Long commute"}
 
-### Same shift twice, expect 409
+### 3.5.2 The same shift twice — expect 409
 POST http://localhost:8080/api/shift-preferences
 Content-Type: application/json
 
 {"shiftId": 5, "type": "CANNOT"}
 
-### Submit for someone else, expect 403
+### 3.5.3 Submit on behalf of employee 4 — expect 403
 POST http://localhost:8080/api/shift-preferences
 Content-Type: application/json
 
 {"shiftId": 6, "type": "CANNOT", "employeeId": 4}
 
-### Own preferences only
+### 3.5.4 List — expect 200, two entries, both maya's
 GET http://localhost:8080/api/shift-preferences?scheduleId=1
 
-### Filter by someone else, the parameter is ignored
-GET http://localhost:8080/api/shift-preferences?scheduleId=1&employeeId=3
+### 3.5.5 Try to filter by another employee — expect the same two entries
+GET http://localhost:8080/api/shift-preferences?scheduleId=1&employeeId=4
 
-### List leaves, expect 403
-GET http://localhost:8080/api/leaves
 
-### ============================================================
-### 4 — Publishing changes what the employee can see
-### ============================================================
+### ===========================================================
+### 4 — PUBLISHING
+### Back to the manager
+### ===========================================================
 
-### Back to manager
+### 4.0 Log in as manager — expect 200
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "dana", "password": "password123"}
 
-### Publish, expect 200 with status PUBLISHED
+### 4.1 Publish schedule 1 — expect 200, status PUBLISHED
 PUT http://localhost:8080/api/schedules/1/publish
 
-### Publish again, expect 409
+### 4.2 Publish again — expect 409
 PUT http://localhost:8080/api/schedules/1/publish
 
-### Modify a published schedule, expect 409
+### 4.3 Change requirements after publishing — expect 409
 PUT http://localhost:8080/api/schedules/1/shifts/1/requirements
 Content-Type: application/json
 
 {"requirements": [{"jobPositionId": 2, "requiredCount": 5}]}
 
-### Delete a published schedule, expect 409
+### 4.4 Assign after publishing — expect 409
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 6, "employeeId": 5, "override": false}
+
+### 4.5 Delete a published schedule — expect 409
 DELETE http://localhost:8080/api/schedules/1
 
-### Back to employee
+
+### ===========================================================
+### 5 — THE SAME EMPLOYEE, AFTER PUBLISHING
+### ===========================================================
+
+### 5.0 Log in as employee — expect 200
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "maya", "password": "password123"}
 
-### The same request now returns one entry
+### 5.1 List schedules — expect 200 and one entry
+###     Compare with 3.4.1, which returned an empty array
 GET http://localhost:8080/api/schedules
 
-### And the detail opens, expect 200
+### 5.2 Open the schedule — expect 200
+###     Compare with 3.4.2, which returned 404
 GET http://localhost:8080/api/schedules/1
 
-### Submit after publish, expect 409
+### 5.3 Coverage — expect 200
+GET http://localhost:8080/api/schedules/1/coverage
+
+### 5.4 My shifts — expect 200, the shift maya was assigned to in 2.9.5
+GET http://localhost:8080/api/schedules/1/my-shifts
+
+### 5.5 Submit a preference after publishing — expect 409
 POST http://localhost:8080/api/shift-preferences
 Content-Type: application/json
 
 {"shiftId": 9, "type": "CANNOT"}
 
-### ============================================================
-### 5 — Employee created through the API can log in
-### ============================================================
 
-### Login as the employee created earlier
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{"username": "roni", "password": "password123"}
-
-### Current user, expect 200 with the id of roni
-GET http://localhost:8080/api/auth/me
-
-
-### ============================================================
-### 6 — Logout
+### ===========================================================
+### 6 — LOGOUT
 ### Leaves the cookie jar clean for the next run
-### ============================================================
+### ===========================================================
 
-### Log out, expect 204
+### 6.1 Log out — expect 204
 POST http://localhost:8080/api/auth/logout
 
-### Current user after logout, expect 401
+### 6.2 Current user — expect 401
 GET http://localhost:8080/api/auth/me
 
-### Protected endpoint after logout, expect 401
+### 6.3 A protected endpoint — expect 401
 GET http://localhost:8080/api/job-positions

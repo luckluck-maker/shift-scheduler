@@ -1,5 +1,6 @@
 package com.shiftscheduler.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -29,6 +30,9 @@ public class Assignment {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
+    @Column(name = "is_override", nullable = false)
+    private boolean override;
+
     public Long getId() {
         return id;
     }
@@ -51,5 +55,13 @@ public class Assignment {
 
     public void setEmployee(Employee employee) {
         this.employee = employee;
+    }
+
+    public boolean isOverride() {
+        return override;
+    }
+
+    public void setOverride(boolean override) {
+        this.override = override;
     }
 }

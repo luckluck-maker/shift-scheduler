@@ -5,19 +5,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface EmployeeLeaveRepository extends JpaRepository<EmployeeLeave, Long> {
 
-    List<EmployeeLeave> findByOrderByStartDateDesc();
+    List<EmployeeLeave> findByOrderByEmployeeIdAscLeaveDateAsc();
 
-    List<EmployeeLeave> findByEmployeeIdOrderByStartDateDesc(Long employeeId);
+    List<EmployeeLeave> findByEmployeeIdOrderByLeaveDateAsc(Long employeeId);
 
-    boolean existsByEmployeeIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
-            Long employeeId, LocalDate rangeEnd, LocalDate rangeStart);
+    List<EmployeeLeave> findByLeaveDate(LocalDate leaveDate);
 
-    boolean existsByEmployeeIdAndIdNotAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
-            Long employeeId, Long excludedId, LocalDate rangeEnd, LocalDate rangeStart);
+    Optional<EmployeeLeave> findByEmployeeIdAndLeaveDate(Long employeeId, LocalDate leaveDate);
 
-    List<EmployeeLeave> findByStartDateLessThanEqualAndEndDateGreaterThanEqual(
-            LocalDate rangeEnd, LocalDate rangeStart);
+    List<EmployeeLeave> findByEmployeeIdAndLeaveDateBetween(
+            Long employeeId, LocalDate from, LocalDate to);
 }

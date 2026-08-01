@@ -11,11 +11,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "employee_leave")
+@Table(name = "employee_leave",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_leave_employee_date",
+                columnNames = {"employee_id", "leave_date"}))
 public class EmployeeLeave {
 
     @Id
@@ -26,11 +30,8 @@ public class EmployeeLeave {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
-
-    @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+    @Column(name = "leave_date", nullable = false)
+    private LocalDate leaveDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -52,20 +53,12 @@ public class EmployeeLeave {
         this.employee = employee;
     }
 
-    public LocalDate getStartDate() {
-        return startDate;
+    public LocalDate getLeaveDate() {
+        return leaveDate;
     }
 
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
-
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
+    public void setLeaveDate(LocalDate leaveDate) {
+        this.leaveDate = leaveDate;
     }
 
     public LeaveType getType() {

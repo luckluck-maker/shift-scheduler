@@ -18,7 +18,9 @@ import com.shiftscheduler.web.ValidationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -93,26 +95,41 @@ public class ScheduleService {
 
     @Transactional
     public ScheduleDetailResponse create(ScheduleCreateRequest request) {
-        if (scheduleRepository.existsByWeekStart(request.weekStart())) {
-            throw new ConflictException(
-                    "A schedule for the week starting " + request.weekStart() + " already exists");
+        LocalDate weekStart = request.weekStart();
+
+        if (weekStart.getDayOfWeek() != DayOfWeek.SUNDAY) {
+            throw new ValidationException("weekStart must be a Sunday");
         }
 
-        Map<Long, ShiftType> shiftTypes = loadShiftTypes(request.shifts());
-        Map<Long, JobPosition> positions = loadPositions(request.shifts());
+        if (scheduleRepository.existsByWeekStart(weekStart)) {
+            throw new ConflictException(
+                    "A schedule for the week starting " + weekStart + " already exists");
+        }
 
         Schedule schedule = new Schedule();
-        schedule.setWeekStart(request.weekStart());
+        schedule.setWeekStart(weekStart);
         schedule.setStatus(ScheduleStatus.DRAFT);
         scheduleRepository.save(schedule);
 
+        if (request.shifts() == null || request.shifts().isEmpty()) {
+            copyFromPrevious(schedule);
+        } else {
+            buildFromTemplate(schedule, request.shifts());
+        }
+
+        return findById(schedule.getId());
+    }
+
+    private void buildFromTemplate(Schedule schedule, List<ShiftTemplate> templates) {
+        Map<Long, ShiftType> shiftTypes = loadShiftTypes(templates);
+        Map<Long, JobPosition> positions = loadPositions(templates);
+
         List<Shift> shifts = new ArrayList<>();
-        List<ShiftRequirement> requirements = new ArrayList<>();
 
         for (int dayOffset = 0; dayOffset < DAYS_IN_WEEK; dayOffset++) {
-            LocalDate date = request.weekStart().plusDays(dayOffset);
+            LocalDate date = schedule.getWeekStart().plusDays(dayOffset);
 
-            for (ShiftTemplate template : request.shifts()) {
+            for (ShiftTemplate template : templates) {
                 Shift shift = new Shift();
                 shift.setSchedule(schedule);
                 shift.setShiftDate(date);
@@ -123,9 +140,11 @@ public class ScheduleService {
 
         shiftRepository.saveAll(shifts);
 
+        List<ShiftRequirement> requirements = new ArrayList<>();
         int index = 0;
+
         for (int dayOffset = 0; dayOffset < DAYS_IN_WEEK; dayOffset++) {
-            for (ShiftTemplate template : request.shifts()) {
+            for (ShiftTemplate template : templates) {
                 Shift shift = shifts.get(index++);
 
                 for (RequirementSpec spec : template.requirements()) {
@@ -133,18 +152,68 @@ public class ScheduleService {
                         continue;
                     }
 
-                    ShiftRequirement requirement = new ShiftRequirement();
-                    requirement.setShift(shift);
-                    requirement.setJobPosition(positions.get(spec.jobPositionId()));
-                    requirement.setRequiredCount(spec.requiredCount());
-                    requirements.add(requirement);
+                    requirements.add(newRequirement(
+                            shift, positions.get(spec.jobPositionId()), spec.requiredCount()));
                 }
             }
         }
 
         requirementRepository.saveAll(requirements);
+    }
 
-        return findById(schedule.getId());
+    private void copyFromPrevious(Schedule schedule) {
+        Schedule source = scheduleRepository
+                .findFirstByWeekStartLessThanOrderByWeekStartDesc(schedule.getWeekStart())
+                .orElseThrow(() -> new ValidationException(
+                        "No earlier schedule to copy from. Provide the shifts explicitly."));
+
+        List<Shift> sourceShifts =
+                shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(source.getId());
+
+        if (sourceShifts.isEmpty()) {
+            throw new ValidationException(
+                    "The previous schedule has no shifts. Provide the shifts explicitly.");
+        }
+
+        Map<Long, List<ShiftRequirement>> sourceRequirements =
+                requirementRepository.findByShiftScheduleIdOrderByIdAsc(source.getId()).stream()
+                        .collect(Collectors.groupingBy(requirement -> requirement.getShift().getId()));
+
+        List<Shift> copies = new ArrayList<>();
+
+        for (Shift sourceShift : sourceShifts) {
+            long dayOffset = ChronoUnit.DAYS.between(source.getWeekStart(), sourceShift.getShiftDate());
+
+            Shift copy = new Shift();
+            copy.setSchedule(schedule);
+            copy.setShiftDate(schedule.getWeekStart().plusDays(dayOffset));
+            copy.setShiftType(sourceShift.getShiftType());
+            copies.add(copy);
+        }
+
+        shiftRepository.saveAll(copies);
+
+        List<ShiftRequirement> requirements = new ArrayList<>();
+
+        for (int i = 0; i < sourceShifts.size(); i++) {
+            Shift copy = copies.get(i);
+
+            for (ShiftRequirement source1 : sourceRequirements
+                    .getOrDefault(sourceShifts.get(i).getId(), List.of())) {
+                requirements.add(newRequirement(
+                        copy, source1.getJobPosition(), source1.getRequiredCount()));
+            }
+        }
+
+        requirementRepository.saveAll(requirements);
+    }
+
+    private ShiftRequirement newRequirement(Shift shift, JobPosition position, int count) {
+        ShiftRequirement requirement = new ShiftRequirement();
+        requirement.setShift(shift);
+        requirement.setJobPosition(position);
+        requirement.setRequiredCount(count);
+        return requirement;
     }
 
     @Transactional
@@ -185,7 +254,8 @@ public class ScheduleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Shift " + shiftId + " not found"));
 
         if (!shift.getSchedule().getId().equals(scheduleId)) {
-            throw new ValidationException("Shift " + shiftId + " does not belong to schedule " + scheduleId);
+            throw new ValidationException(
+                    "Shift " + shiftId + " does not belong to schedule " + scheduleId);
         }
 
         Set<Long> seen = new HashSet<>();
@@ -204,13 +274,8 @@ public class ScheduleService {
 
         List<ShiftRequirement> replacements = request.requirements().stream()
                 .filter(spec -> spec.requiredCount() > 0)
-                .map(spec -> {
-                    ShiftRequirement requirement = new ShiftRequirement();
-                    requirement.setShift(shift);
-                    requirement.setJobPosition(positions.get(spec.jobPositionId()));
-                    requirement.setRequiredCount(spec.requiredCount());
-                    return requirement;
-                })
+                .map(spec -> newRequirement(
+                        shift, positions.get(spec.jobPositionId()), spec.requiredCount()))
                 .toList();
 
         requirementRepository.saveAll(replacements);

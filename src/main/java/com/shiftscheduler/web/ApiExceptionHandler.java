@@ -1,5 +1,7 @@
 package com.shiftscheduler.web;
 
+import com.shiftscheduler.assignment.AssignmentRejectedException;
+import com.shiftscheduler.assignment.AssignmentRejection;
 import com.shiftscheduler.auth.InvalidCredentialsException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,21 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ApiError> handleValidationRule(ValidationException ex) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(AssignmentRejectedException.class)
+    public ResponseEntity<AssignmentRejection> handleAssignmentRejected(
+            AssignmentRejectedException ex) {
+
+        AssignmentRejection body = new AssignmentRejection(
+                Instant.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                ex.getBlocking(),
+                ex.getOverridable());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

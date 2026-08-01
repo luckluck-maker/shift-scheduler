@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS flyway_smoke_test;
-
 CREATE TABLE job_position
 (
     id   BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -72,6 +70,7 @@ CREATE TABLE assignment
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
     shift_id    BIGINT NOT NULL,
     employee_id BIGINT NOT NULL,
+    is_override BIT(1) NOT NULL DEFAULT b'0',
     CONSTRAINT uk_assignment_shift_employee UNIQUE (shift_id, employee_id),
     CONSTRAINT fk_assignment_shift
         FOREIGN KEY (shift_id) REFERENCES shift (id) ON DELETE CASCADE,
@@ -97,12 +96,12 @@ CREATE TABLE employee_leave
 (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
     employee_id BIGINT      NOT NULL,
-    start_date  DATE        NOT NULL,
-    end_date    DATE        NOT NULL,
+    leave_date  DATE        NOT NULL,
     type        VARCHAR(20) NOT NULL,
+    CONSTRAINT uk_leave_employee_date UNIQUE (employee_id, leave_date),
     CONSTRAINT fk_leave_employee
         FOREIGN KEY (employee_id) REFERENCES employee (id)
 );
 
-CREATE INDEX idx_leave_employee_dates ON employee_leave (employee_id, start_date, end_date);
+CREATE INDEX idx_leave_date ON employee_leave (leave_date);
 CREATE INDEX idx_shift_date ON shift (shift_date);
