@@ -7,6 +7,7 @@ public record ScheduleSummaryResponse(
         LocalDate weekStart,
         LocalDate weekEnd,
         String status,
+        long version,
         int shiftCount
 ) {
 }

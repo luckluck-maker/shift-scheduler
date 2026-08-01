@@ -25,6 +25,7 @@ CREATE TABLE employee
     max_weekly_hours INT          NOT NULL,
     active           BIT(1)       NOT NULL DEFAULT b'1',
     job_position_id  BIGINT       NOT NULL,
+    version          BIGINT       NOT NULL DEFAULT 0,
     CONSTRAINT uk_employee_username UNIQUE (username),
     CONSTRAINT fk_employee_job_position
         FOREIGN KEY (job_position_id) REFERENCES job_position (id)
@@ -32,10 +33,11 @@ CREATE TABLE employee
 
 CREATE TABLE schedule
 (
-    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
-    week_start DATE        NOT NULL,
-    status     VARCHAR(20) NOT NULL,
-    version    BIGINT      NOT NULL DEFAULT 0,
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    week_start      DATE        NOT NULL,
+    status          VARCHAR(20) NOT NULL,
+    last_changed_at DATETIME(6) NOT NULL,
+    version         BIGINT      NOT NULL DEFAULT 0,
     CONSTRAINT uk_schedule_week_start UNIQUE (week_start)
 );
 

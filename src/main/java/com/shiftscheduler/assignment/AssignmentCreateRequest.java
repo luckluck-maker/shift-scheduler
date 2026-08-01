@@ -10,6 +10,8 @@ public record AssignmentCreateRequest(
         @NotNull
         Long employeeId,
 
-        boolean override
+        boolean override,
+
+        Long scheduleVersion
 ) {
 }

@@ -3,12 +3,12 @@ package com.shiftscheduler.schedule;
 import java.time.LocalDate;
 import java.util.List;
 
-public record ScheduleDetailResponse(
-        Long id,
+public record MyWeekResponse(
+        Long scheduleId,
         LocalDate weekStart,
         LocalDate weekEnd,
         String status,
-        long version,
-        List<ShiftResponse> shifts
+        boolean submissionOpen,
+        List<EmployeeShiftResponse> shifts
 ) {
 }

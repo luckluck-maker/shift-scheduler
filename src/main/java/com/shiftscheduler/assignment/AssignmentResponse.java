@@ -12,6 +12,7 @@ public record AssignmentResponse(
         String employeeName,
         String jobPositionName,
         boolean override,
+        long scheduleVersion,
         List<RuleViolation> warnings,
         List<String> overridesApplied
 ) {

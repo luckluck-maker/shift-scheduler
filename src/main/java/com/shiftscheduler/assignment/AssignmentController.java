@@ -35,6 +35,13 @@ public class AssignmentController {
         return assignmentService.myAssignments(scheduleId);
     }
 
+    @DeleteMapping("/schedules/{scheduleId}/assignments")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('MANAGER')")
+    public void clearAll(@PathVariable Long scheduleId) {
+        assignmentService.clearAll(scheduleId);
+    }
+
     @GetMapping("/shifts/{shiftId}/available-employees")
     @PreAuthorize("hasRole('MANAGER')")
     public List<AvailableEmployeeResponse> availableEmployees(

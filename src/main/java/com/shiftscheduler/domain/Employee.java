@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "employee")
@@ -42,6 +43,10 @@ public class Employee {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "job_position_id", nullable = false)
     private JobPosition jobPosition;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     public Long getId() {
         return id;
@@ -105,5 +110,9 @@ public class Employee {
 
     public void setJobPosition(JobPosition jobPosition) {
         this.jobPosition = jobPosition;
+    }
+
+    public long getVersion() {
+        return version;
     }
 }

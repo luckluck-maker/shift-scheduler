@@ -5,10 +5,12 @@ import com.shiftscheduler.domain.JobPosition;
 import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.domain.Shift;
+import com.shiftscheduler.domain.ShiftPreference;
 import com.shiftscheduler.domain.ShiftRequirement;
 import com.shiftscheduler.domain.ShiftType;
 import com.shiftscheduler.repository.JobPositionRepository;
 import com.shiftscheduler.repository.ScheduleRepository;
+import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftRequirementRepository;
 import com.shiftscheduler.repository.ShiftTypeRepository;
@@ -39,6 +41,8 @@ public class ScheduleService {
     private final ShiftRequirementRepository requirementRepository;
     private final ShiftTypeRepository shiftTypeRepository;
     private final JobPositionRepository jobPositionRepository;
+    private final ShiftPreferenceRepository preferenceRepository;
+    private final ScheduleGuard guard;
     private final CurrentUserProvider currentUser;
 
     public ScheduleService(ScheduleRepository scheduleRepository,
@@ -46,12 +50,16 @@ public class ScheduleService {
                            ShiftRequirementRepository requirementRepository,
                            ShiftTypeRepository shiftTypeRepository,
                            JobPositionRepository jobPositionRepository,
+                           ShiftPreferenceRepository preferenceRepository,
+                           ScheduleGuard guard,
                            CurrentUserProvider currentUser) {
         this.scheduleRepository = scheduleRepository;
         this.shiftRepository = shiftRepository;
         this.requirementRepository = requirementRepository;
         this.shiftTypeRepository = shiftTypeRepository;
         this.jobPositionRepository = jobPositionRepository;
+        this.preferenceRepository = preferenceRepository;
+        this.guard = guard;
         this.currentUser = currentUser;
     }
 
@@ -59,14 +67,16 @@ public class ScheduleService {
     public List<ScheduleSummaryResponse> findAll() {
         List<Schedule> schedules = currentUser.isManager()
                 ? scheduleRepository.findAllByOrderByWeekStartDesc()
-                : scheduleRepository.findByStatusOrderByWeekStartDesc(ScheduleStatus.PUBLISHED);
+                : scheduleRepository.findByStatusInOrderByWeekStartDesc(
+                List.of(ScheduleStatus.COLLECTING, ScheduleStatus.PUBLISHED));
 
         return schedules.stream()
                 .map(schedule -> new ScheduleSummaryResponse(
                         schedule.getId(),
                         schedule.getWeekStart(),
-                        schedule.getWeekStart().plusDays(DAYS_IN_WEEK - 1),
+                        weekEnd(schedule),
                         schedule.getStatus().name(),
+                        schedule.getVersion(),
                         shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(schedule.getId()).size()))
                 .toList();
     }
@@ -88,9 +98,39 @@ public class ScheduleService {
         return new ScheduleDetailResponse(
                 schedule.getId(),
                 schedule.getWeekStart(),
-                schedule.getWeekStart().plusDays(DAYS_IN_WEEK - 1),
+                weekEnd(schedule),
                 schedule.getStatus().name(),
+                schedule.getVersion(),
                 shiftResponses);
+    }
+
+    @Transactional(readOnly = true)
+    public MyWeekResponse myWeek(Long scheduleId) {
+        Schedule schedule = guard.require(scheduleId);
+
+        if (!currentUser.isManager() && schedule.getStatus() == ScheduleStatus.DRAFT) {
+            throw new ResourceNotFoundException("Schedule " + scheduleId + " not found");
+        }
+
+        Map<Long, ShiftPreference> preferences = preferenceRepository
+                .findByShiftScheduleIdAndEmployeeIdOrderByShiftShiftDateAscIdAsc(
+                        scheduleId, currentUser.employeeId())
+                .stream()
+                .collect(Collectors.toMap(
+                        preference -> preference.getShift().getId(), Function.identity()));
+
+        List<EmployeeShiftResponse> shifts =
+                shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(scheduleId).stream()
+                        .map(shift -> toEmployeeShift(shift, preferences.get(shift.getId())))
+                        .toList();
+
+        return new MyWeekResponse(
+                schedule.getId(),
+                schedule.getWeekStart(),
+                weekEnd(schedule),
+                schedule.getStatus().name(),
+                schedule.getStatus() == ScheduleStatus.COLLECTING,
+                shifts);
     }
 
     @Transactional
@@ -108,7 +148,7 @@ public class ScheduleService {
 
         Schedule schedule = new Schedule();
         schedule.setWeekStart(weekStart);
-        schedule.setStatus(ScheduleStatus.DRAFT);
+        schedule.setStatus(ScheduleStatus.COLLECTING);
         scheduleRepository.save(schedule);
 
         if (request.shifts() == null || request.shifts().isEmpty()) {
@@ -118,6 +158,72 @@ public class ScheduleService {
         }
 
         return findById(schedule.getId());
+    }
+
+    @Transactional
+    public ScheduleDetailResponse lock(Long id, VersionedRequest request) {
+        Schedule schedule = guard.require(id);
+        guard.requireStatus(schedule, ScheduleStatus.COLLECTING);
+        guard.requireVersion(schedule, request.version());
+
+        schedule.setStatus(ScheduleStatus.DRAFT);
+        guard.markChanged(schedule);
+
+        return findById(id);
+    }
+
+    @Transactional
+    public ScheduleDetailResponse publish(Long id, VersionedRequest request) {
+        Schedule schedule = guard.require(id);
+        guard.requireStatus(schedule, ScheduleStatus.DRAFT);
+        guard.requireVersion(schedule, request.version());
+
+        schedule.setStatus(ScheduleStatus.PUBLISHED);
+        guard.markChanged(schedule);
+
+        return findById(id);
+    }
+
+    @Transactional
+    public ShiftResponse replaceRequirements(Long scheduleId,
+                                             Long shiftId,
+                                             ShiftRequirementsUpdateRequest request) {
+        Schedule schedule = guard.require(scheduleId);
+        guard.requireStatus(schedule, ScheduleStatus.COLLECTING, ScheduleStatus.DRAFT);
+        guard.requireVersion(schedule, request.version());
+
+        Shift shift = shiftRepository.findById(shiftId)
+                .orElseThrow(() -> new ResourceNotFoundException("Shift " + shiftId + " not found"));
+
+        if (!shift.getSchedule().getId().equals(scheduleId)) {
+            throw new ValidationException(
+                    "Shift " + shiftId + " does not belong to schedule " + scheduleId);
+        }
+
+        Set<Long> seen = new HashSet<>();
+        for (RequirementSpec spec : request.requirements()) {
+            if (!seen.add(spec.jobPositionId())) {
+                throw new ValidationException(
+                        "Job position " + spec.jobPositionId() + " appears more than once");
+            }
+        }
+
+        Map<Long, JobPosition> positions = loadPositions(
+                List.of(new ShiftTemplate(shift.getShiftType().getId(), request.requirements())));
+
+        requirementRepository.deleteByShiftId(shiftId);
+        requirementRepository.flush();
+
+        List<ShiftRequirement> replacements = request.requirements().stream()
+                .filter(spec -> spec.requiredCount() > 0)
+                .map(spec -> newRequirement(
+                        shift, positions.get(spec.jobPositionId()), spec.requiredCount()))
+                .toList();
+
+        requirementRepository.saveAll(replacements);
+        guard.markChanged(schedule);
+
+        return toShiftResponse(shift, replacements);
     }
 
     private void buildFromTemplate(Schedule schedule, List<ShiftTemplate> templates) {
@@ -198,10 +304,10 @@ public class ScheduleService {
         for (int i = 0; i < sourceShifts.size(); i++) {
             Shift copy = copies.get(i);
 
-            for (ShiftRequirement source1 : sourceRequirements
+            for (ShiftRequirement original : sourceRequirements
                     .getOrDefault(sourceShifts.get(i).getId(), List.of())) {
                 requirements.add(newRequirement(
-                        copy, source1.getJobPosition(), source1.getRequiredCount()));
+                        copy, original.getJobPosition(), original.getRequiredCount()));
             }
         }
 
@@ -214,73 +320,6 @@ public class ScheduleService {
         requirement.setJobPosition(position);
         requirement.setRequiredCount(count);
         return requirement;
-    }
-
-    @Transactional
-    public ScheduleDetailResponse publish(Long id) {
-        Schedule schedule = requireSchedule(id);
-
-        if (schedule.getStatus() == ScheduleStatus.PUBLISHED) {
-            throw new ConflictException("Schedule " + id + " is already published");
-        }
-
-        schedule.setStatus(ScheduleStatus.PUBLISHED);
-
-        return findById(id);
-    }
-
-    @Transactional
-    public void delete(Long id) {
-        Schedule schedule = requireSchedule(id);
-
-        if (schedule.getStatus() == ScheduleStatus.PUBLISHED) {
-            throw new ConflictException("A published schedule cannot be deleted");
-        }
-
-        scheduleRepository.delete(schedule);
-    }
-
-    @Transactional
-    public ShiftResponse replaceRequirements(Long scheduleId,
-                                             Long shiftId,
-                                             ShiftRequirementsUpdateRequest request) {
-        Schedule schedule = requireSchedule(scheduleId);
-
-        if (schedule.getStatus() == ScheduleStatus.PUBLISHED) {
-            throw new ConflictException("A published schedule cannot be modified");
-        }
-
-        Shift shift = shiftRepository.findById(shiftId)
-                .orElseThrow(() -> new ResourceNotFoundException("Shift " + shiftId + " not found"));
-
-        if (!shift.getSchedule().getId().equals(scheduleId)) {
-            throw new ValidationException(
-                    "Shift " + shiftId + " does not belong to schedule " + scheduleId);
-        }
-
-        Set<Long> seen = new HashSet<>();
-        for (RequirementSpec spec : request.requirements()) {
-            if (!seen.add(spec.jobPositionId())) {
-                throw new ValidationException(
-                        "Job position " + spec.jobPositionId() + " appears more than once");
-            }
-        }
-
-        Map<Long, JobPosition> positions = loadPositions(
-                List.of(new ShiftTemplate(shift.getShiftType().getId(), request.requirements())));
-
-        requirementRepository.deleteByShiftId(shiftId);
-        requirementRepository.flush();
-
-        List<ShiftRequirement> replacements = request.requirements().stream()
-                .filter(spec -> spec.requiredCount() > 0)
-                .map(spec -> newRequirement(
-                        shift, positions.get(spec.jobPositionId()), spec.requiredCount()))
-                .toList();
-
-        requirementRepository.saveAll(replacements);
-
-        return toShiftResponse(shift, replacements);
     }
 
     private Map<Long, ShiftType> loadShiftTypes(List<ShiftTemplate> templates) {
@@ -320,19 +359,33 @@ public class ScheduleService {
         return found;
     }
 
-    private Schedule requireSchedule(Long id) {
-        return scheduleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Schedule " + id + " not found"));
-    }
-
     private Schedule requireVisible(Long id) {
-        Schedule schedule = requireSchedule(id);
+        Schedule schedule = guard.require(id);
 
         if (!currentUser.isManager() && schedule.getStatus() != ScheduleStatus.PUBLISHED) {
             throw new ResourceNotFoundException("Schedule " + id + " not found");
         }
 
         return schedule;
+    }
+
+    private LocalDate weekEnd(Schedule schedule) {
+        return schedule.getWeekStart().plusDays(DAYS_IN_WEEK - 1L);
+    }
+
+    private EmployeeShiftResponse toEmployeeShift(Shift shift, ShiftPreference preference) {
+        ShiftType type = shift.getShiftType();
+
+        return new EmployeeShiftResponse(
+                shift.getId(),
+                shift.getShiftDate(),
+                type.getName(),
+                type.getStartTime(),
+                type.getEndTime(),
+                type.isCrossesMidnight(),
+                preference == null ? null : preference.getId(),
+                preference == null ? null : preference.getType().name(),
+                preference == null ? null : preference.getReason());
     }
 
     private ShiftResponse toShiftResponse(Shift shift, List<ShiftRequirement> requirements) {

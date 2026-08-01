@@ -5,6 +5,7 @@ import com.shiftscheduler.domain.ScheduleStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,7 +15,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     List<Schedule> findAllByOrderByWeekStartDesc();
 
-    List<Schedule> findByStatusOrderByWeekStartDesc(ScheduleStatus status);
+    List<Schedule> findByStatusInOrderByWeekStartDesc(Collection<ScheduleStatus> statuses);
 
     Optional<Schedule> findFirstByWeekStartLessThanOrderByWeekStartDesc(LocalDate weekStart);
 }

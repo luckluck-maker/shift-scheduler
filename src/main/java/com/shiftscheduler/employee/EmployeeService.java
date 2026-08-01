@@ -66,12 +66,14 @@ public class EmployeeService {
     public EmployeeResponse update(Long id, EmployeeUpdateRequest request) {
         Employee employee = require(id);
 
+        requireCurrentVersion(employee, request.version());
+
         boolean losingManager =
                 employee.getRole() == Role.MANAGER
                         && (request.role() != Role.MANAGER || !request.active());
 
         if (losingManager) {
-            guardLastManager();
+            guardLastManager(employee.getId());
         }
 
         employee.setFullName(request.fullName().trim());
@@ -88,7 +90,7 @@ public class EmployeeService {
         Employee employee = require(id);
 
         if (employee.getRole() == Role.MANAGER && employee.isActive()) {
-            guardLastManager();
+            guardLastManager(employee.getId());
         }
 
         employee.setActive(false);
@@ -100,8 +102,24 @@ public class EmployeeService {
         employee.setPasswordHash(passwordEncoder.encode(request.newPassword()));
     }
 
-    private void guardLastManager() {
-        if (employeeRepository.countByRoleAndActiveTrue(Role.MANAGER) <= 1) {
+    // A PUT sends every field, including ones the user didn't touch.
+    // Without this check, fixing a name would also write back the old hours
+    // and undo someone else's change.
+    private void requireCurrentVersion(Employee employee, Long expected) {
+        if (expected != employee.getVersion()) {
+            throw new ConflictException(
+                    "This employee was changed by someone else. Reload and try again.");
+        }
+    }
+
+    // Reads under a write lock so a second request demoting another manager
+    // waits and then sees the real count.
+    private void guardLastManager(Long excludedId) {
+        long remaining = employeeRepository.lockActiveByRole(Role.MANAGER).stream()
+                .filter(manager -> !manager.getId().equals(excludedId))
+                .count();
+
+        if (remaining == 0) {
             throw new ValidationException("The system must keep at least one active manager");
         }
     }
@@ -125,7 +143,7 @@ public class EmployeeService {
                 employee.getMaxWeeklyHours(),
                 employee.isActive(),
                 employee.getJobPosition().getId(),
-                employee.getJobPosition().getName()
-        );
+                employee.getJobPosition().getName(),
+                employee.getVersion());
     }
 }

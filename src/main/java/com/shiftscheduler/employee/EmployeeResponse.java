@@ -8,6 +8,7 @@ public record EmployeeResponse(
         int maxWeeklyHours,
         boolean active,
         Long jobPositionId,
-        String jobPositionName
+        String jobPositionName,
+        long version
 ) {
 }

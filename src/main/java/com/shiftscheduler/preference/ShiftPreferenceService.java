@@ -2,12 +2,14 @@ package com.shiftscheduler.preference;
 
 import com.shiftscheduler.auth.CurrentUserProvider;
 import com.shiftscheduler.domain.Employee;
+import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.domain.Shift;
 import com.shiftscheduler.domain.ShiftPreference;
 import com.shiftscheduler.repository.EmployeeRepository;
 import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
+import com.shiftscheduler.schedule.ScheduleGuard;
 import com.shiftscheduler.web.ConflictException;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
@@ -23,15 +25,18 @@ public class ShiftPreferenceService {
     private final ShiftPreferenceRepository preferenceRepository;
     private final ShiftRepository shiftRepository;
     private final EmployeeRepository employeeRepository;
+    private final ScheduleGuard guard;
     private final CurrentUserProvider currentUser;
 
     public ShiftPreferenceService(ShiftPreferenceRepository preferenceRepository,
                                   ShiftRepository shiftRepository,
                                   EmployeeRepository employeeRepository,
+                                  ScheduleGuard guard,
                                   CurrentUserProvider currentUser) {
         this.preferenceRepository = preferenceRepository;
         this.shiftRepository = shiftRepository;
         this.employeeRepository = employeeRepository;
+        this.guard = guard;
         this.currentUser = currentUser;
     }
 
@@ -55,7 +60,7 @@ public class ShiftPreferenceService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Shift " + request.shiftId() + " not found"));
 
-        requireOpenForSubmission(shift);
+        requireSubmissionAllowed(shift.getSchedule());
 
         if (preferenceRepository.existsByEmployeeIdAndShiftId(employeeId, shift.getId())) {
             throw new ConflictException("A preference for this shift already exists");
@@ -80,7 +85,7 @@ public class ShiftPreferenceService {
     @Transactional
     public ShiftPreferenceResponse update(Long id, ShiftPreferenceUpdateRequest request) {
         ShiftPreference preference = requireOwned(id);
-        requireOpenForSubmission(preference.getShift());
+        requireSubmissionAllowed(preference.getShift().getSchedule());
 
         preference.setType(request.type());
         preference.setReason(trimmed(request.reason()));
@@ -91,9 +96,19 @@ public class ShiftPreferenceService {
     @Transactional
     public void delete(Long id) {
         ShiftPreference preference = requireOwned(id);
-        requireOpenForSubmission(preference.getShift());
+        requireSubmissionAllowed(preference.getShift().getSchedule());
 
         preferenceRepository.delete(preference);
+    }
+
+    // Employees submit only while the schedule is collecting.
+    // The manager can still fix a constraint after the window closed.
+    private void requireSubmissionAllowed(Schedule schedule) {
+        if (currentUser.isManager()) {
+            guard.requireStatus(schedule, ScheduleStatus.COLLECTING, ScheduleStatus.DRAFT);
+        } else {
+            guard.requireStatus(schedule, ScheduleStatus.COLLECTING);
+        }
     }
 
     private Long resolveEmployeeId(Long requested) {
@@ -119,13 +134,6 @@ public class ShiftPreferenceService {
         }
 
         return preference;
-    }
-
-    private void requireOpenForSubmission(Shift shift) {
-        if (shift.getSchedule().getStatus() == ScheduleStatus.PUBLISHED) {
-            throw new ConflictException(
-                    "The schedule is already published and no longer accepts preferences");
-        }
     }
 
     private String trimmed(String value) {

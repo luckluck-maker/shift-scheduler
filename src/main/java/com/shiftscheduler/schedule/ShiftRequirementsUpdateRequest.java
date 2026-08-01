@@ -8,6 +8,9 @@ import java.util.List;
 public record ShiftRequirementsUpdateRequest(
 
         @NotNull
+        Long version,
+
+        @NotNull
         @Valid
         List<RequirementSpec> requirements
 ) {

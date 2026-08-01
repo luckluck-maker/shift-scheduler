@@ -1,9 +1,7 @@
 package com.shiftscheduler.schedule;
 
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -35,6 +34,11 @@ public class ScheduleController {
         return scheduleService.findById(id);
     }
 
+    @GetMapping("/{id}/my-week")
+    public MyWeekResponse myWeek(@PathVariable Long id) {
+        return scheduleService.myWeek(id);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('MANAGER')")
@@ -42,10 +46,18 @@ public class ScheduleController {
         return scheduleService.create(request);
     }
 
+    @PutMapping("/{id}/lock")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ScheduleDetailResponse lock(@PathVariable Long id,
+                                       @Valid @RequestBody VersionedRequest request) {
+        return scheduleService.lock(id, request);
+    }
+
     @PutMapping("/{id}/publish")
     @PreAuthorize("hasRole('MANAGER')")
-    public ScheduleDetailResponse publish(@PathVariable Long id) {
-        return scheduleService.publish(id);
+    public ScheduleDetailResponse publish(@PathVariable Long id,
+                                          @Valid @RequestBody VersionedRequest request) {
+        return scheduleService.publish(id, request);
     }
 
     @PutMapping("/{scheduleId}/shifts/{shiftId}/requirements")
@@ -55,12 +67,5 @@ public class ScheduleController {
             @PathVariable Long shiftId,
             @Valid @RequestBody ShiftRequirementsUpdateRequest request) {
         return scheduleService.replaceRequirements(scheduleId, shiftId, request);
-    }
-
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('MANAGER')")
-    public void delete(@PathVariable Long id) {
-        scheduleService.delete(id);
     }
 }

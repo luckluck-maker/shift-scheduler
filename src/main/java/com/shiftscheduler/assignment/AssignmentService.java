@@ -17,6 +17,7 @@ import com.shiftscheduler.repository.ScheduleRepository;
 import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftRequirementRepository;
+import com.shiftscheduler.schedule.ScheduleGuard;
 import com.shiftscheduler.web.ConflictException;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
@@ -40,6 +41,7 @@ public class AssignmentService {
     private final ShiftPreferenceRepository preferenceRepository;
     private final ScheduleRepository scheduleRepository;
     private final ScheduleRules rules;
+    private final ScheduleGuard guard;
     private final CurrentUserProvider currentUser;
 
     public AssignmentService(AssignmentRepository assignmentRepository,
@@ -50,6 +52,7 @@ public class AssignmentService {
                              ShiftPreferenceRepository preferenceRepository,
                              ScheduleRepository scheduleRepository,
                              ScheduleRules rules,
+                             ScheduleGuard guard,
                              CurrentUserProvider currentUser) {
         this.assignmentRepository = assignmentRepository;
         this.shiftRepository = shiftRepository;
@@ -59,6 +62,7 @@ public class AssignmentService {
         this.preferenceRepository = preferenceRepository;
         this.scheduleRepository = scheduleRepository;
         this.rules = rules;
+        this.guard = guard;
         this.currentUser = currentUser;
     }
 
@@ -68,7 +72,9 @@ public class AssignmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Shift " + request.shiftId() + " not found"));
 
-        requireDraft(shift.getSchedule());
+        Schedule schedule = shift.getSchedule();
+        guard.requireStatus(schedule, ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED);
+        guard.requireVersion(schedule, request.scheduleVersion());
 
         Employee employee = employeeRepository.findById(request.employeeId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -121,7 +127,10 @@ public class AssignmentService {
         assignment.setEmployee(employee);
         assignment.setOverride(noSlot);
 
-        return toResponse(assignmentRepository.save(assignment), warnings, applied);
+        Assignment saved = assignmentRepository.save(assignment);
+        guard.markChanged(schedule);
+
+        return toResponse(saved, warnings, applied);
     }
 
     private List<String> applyOverrides(Employee employee, Shift shift,
@@ -156,13 +165,27 @@ public class AssignmentService {
     }
 
     @Transactional
+    public void clearAll(Long scheduleId) {
+        Schedule schedule = guard.require(scheduleId);
+        guard.requireStatus(schedule, ScheduleStatus.DRAFT);
+
+        List<Assignment> assignments =
+                assignmentRepository.findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(scheduleId);
+
+        assignmentRepository.deleteAll(assignments);
+        guard.markChanged(schedule);
+    }
+
+    @Transactional
     public void delete(Long id) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment " + id + " not found"));
 
-        requireDraft(assignment.getShift().getSchedule());
+        Schedule schedule = assignment.getShift().getSchedule();
+        guard.requireStatus(schedule, ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED);
 
         assignmentRepository.delete(assignment);
+        guard.markChanged(schedule);
     }
 
     @Transactional(readOnly = true)
@@ -312,15 +335,8 @@ public class AssignmentService {
                 assignmentResponses);
     }
 
-    private void requireDraft(Schedule schedule) {
-        if (schedule.getStatus() == ScheduleStatus.PUBLISHED) {
-            throw new ConflictException("A published schedule cannot be modified");
-        }
-    }
-
     private Schedule requireVisibleSchedule(Long id) {
-        Schedule schedule = scheduleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Schedule " + id + " not found"));
+        Schedule schedule = guard.require(id);
 
         if (!currentUser.isManager() && schedule.getStatus() != ScheduleStatus.PUBLISHED) {
             throw new ResourceNotFoundException("Schedule " + id + " not found");
@@ -344,6 +360,7 @@ public class AssignmentService {
                 employee.getFullName(),
                 employee.getJobPosition().getName(),
                 assignment.isOverride(),
+                shift.getSchedule().getVersion(),
                 warnings,
                 applied);
     }
