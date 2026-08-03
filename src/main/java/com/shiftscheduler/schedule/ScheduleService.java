@@ -278,7 +278,8 @@ public class ScheduleService {
         List<ShiftRequirement> replacements = request.requirements().stream()
                 .filter(spec -> spec.requiredCount() > 0)
                 .map(spec -> newRequirement(
-                        shift, positions.get(spec.jobPositionId()), spec.requiredCount()))
+                        shift, positions.get(spec.jobPositionId()),
+                        spec.requiredCount(), spec.essentialOrDefault()))
                 .toList();
 
         requirementRepository.saveAll(replacements);
@@ -320,7 +321,8 @@ public class ScheduleService {
                     }
 
                     requirements.add(newRequirement(
-                            shift, positions.get(spec.jobPositionId()), spec.requiredCount()));
+                            shift, positions.get(spec.jobPositionId()),
+                            spec.requiredCount(), spec.essentialOrDefault()));
                 }
             }
         }
@@ -368,18 +370,21 @@ public class ScheduleService {
             for (ShiftRequirement original : sourceRequirements
                     .getOrDefault(sourceShifts.get(i).getId(), List.of())) {
                 requirements.add(newRequirement(
-                        copy, original.getJobPosition(), original.getRequiredCount()));
+                        copy, original.getJobPosition(), original.getRequiredCount(),
+                        original.isEssential()));
             }
         }
 
         requirementRepository.saveAll(requirements);
     }
 
-    private ShiftRequirement newRequirement(Shift shift, JobPosition position, int count) {
+    private ShiftRequirement newRequirement(Shift shift, JobPosition position,
+                                            int count, boolean essential) {
         ShiftRequirement requirement = new ShiftRequirement();
         requirement.setShift(shift);
         requirement.setJobPosition(position);
         requirement.setRequiredCount(count);
+        requirement.setEssential(essential);
         return requirement;
     }
 
@@ -457,7 +462,8 @@ public class ScheduleService {
                         requirement.getId(),
                         requirement.getJobPosition().getId(),
                         requirement.getJobPosition().getName(),
-                        requirement.getRequiredCount()))
+                        requirement.getRequiredCount(),
+                        requirement.isEssential()))
                 .toList();
 
         return new ShiftResponse(

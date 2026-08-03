@@ -33,6 +33,11 @@ public class ShiftRequirement {
     @Column(name = "required_count", nullable = false)
     private int requiredCount;
 
+    // Whether the shift can run without this position at all. A restaurant
+    // needs a waiter; a supervisor is good to have but not a blocker.
+    @Column(name = "is_essential", nullable = false)
+    private boolean essential = true;
+
     public Long getId() {
         return id;
     }
@@ -63,5 +68,13 @@ public class ShiftRequirement {
 
     public void setRequiredCount(int requiredCount) {
         this.requiredCount = requiredCount;
+    }
+
+    public boolean isEssential() {
+        return essential;
+    }
+
+    public void setEssential(boolean essential) {
+        this.essential = essential;
     }
 }

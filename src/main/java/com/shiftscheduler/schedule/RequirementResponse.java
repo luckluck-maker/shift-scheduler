@@ -4,6 +4,7 @@ public record RequirementResponse(
         Long id,
         Long jobPositionId,
         String jobPositionName,
-        int requiredCount
+        int requiredCount,
+        boolean essential
 ) {
 }

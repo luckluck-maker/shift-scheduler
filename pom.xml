@@ -19,6 +19,7 @@
 
     <properties>
         <java.version>21</java.version>
+        <timefold.version>2.1.0</timefold.version>
     </properties>
 
     <dependencies>
@@ -79,6 +80,19 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
             <version>1.84</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ai.timefold.solver</groupId>
+            <artifactId>timefold-solver-spring-boot-starter</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ai.timefold.solver</groupId>
+            <artifactId>timefold-solver-test</artifactId>
+            <version>1.33.0</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>

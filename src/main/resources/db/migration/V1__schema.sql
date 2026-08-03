@@ -60,6 +60,7 @@ CREATE TABLE shift_requirement
     shift_id        BIGINT NOT NULL,
     job_position_id BIGINT NOT NULL,
     required_count  INT    NOT NULL,
+    is_essential    BIT(1) NOT NULL DEFAULT b'1',
     CONSTRAINT uk_requirement_shift_position UNIQUE (shift_id, job_position_id),
     CONSTRAINT fk_requirement_shift
         FOREIGN KEY (shift_id) REFERENCES shift (id) ON DELETE CASCADE,
