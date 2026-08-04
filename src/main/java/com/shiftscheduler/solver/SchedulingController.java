@@ -1,10 +1,7 @@
 package com.shiftscheduler.solver;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/schedules")
@@ -20,5 +17,10 @@ public class SchedulingController {
     @PostMapping("/{id}/solve")
     public SolveResponse solve(@PathVariable Long id) {
         return schedulingService.solve(id);
+    }
+
+    @GetMapping("/{id}/solve-status")
+    public SolveStatusResponse status(@PathVariable Long id) {
+        return schedulingService.status(id);
     }
 }

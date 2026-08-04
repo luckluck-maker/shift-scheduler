@@ -4,11 +4,10 @@ import ai.timefold.solver.core.api.solver.SolverManager;
 import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.schedule.ScheduleGuard;
-import com.shiftscheduler.web.ConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import ai.timefold.solver.core.api.solver.SolverStatus;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -45,18 +44,29 @@ public class SchedulingService {
 
         long pinned = problem.getSlots().stream().filter(ShiftSlot::isPinned).count();
 
-        // The one line that says what actually went in. If a result looks
-        // wrong, this tells you whether the loader or the solver is to blame.
         log.info("Solving schedule {}: {} slots ({} already assigned), {} employees, "
                         + "{} days of leave, {} stated constraints",
                 scheduleId, problem.getSlots().size(), pinned,
                 problem.getEmployees().size(), problem.getUnavailableDays().size(),
                 problem.getDislikes().size());
 
-        long essentialSlots = problem.getSlots().stream().filter(ShiftSlot::isEssential).count();
-        log.info("Essential slots: {} of {}", essentialSlots, problem.getSlots().size());
-        EmployeeSchedule solution = runSolver(scheduleId, problem);
+        // Hands the problem off and returns. The consumer runs on the solver's
+        // own thread once it finishes.
+        solverManager.solveBuilder()
+                .withProblemId(scheduleId)
+                .withProblem(problem)
+                .withFinalBestSolutionEventConsumer(event -> onSolved(event.solution()))
+                .withExceptionHandler((id, throwable) ->
+                        log.error("Solving schedule " + id + " failed", throwable))
+                .run();
 
+        return new SolveResponse(
+                scheduleId, "SOLVING",
+                problem.getSlots().size(), (int) pinned,
+                0, 0, List.of());
+    }
+
+    private void onSolved(EmployeeSchedule solution) {
         int saved = saver.save(solution);
 
         long stillEmpty = solution.getSlots().stream()
@@ -64,16 +74,7 @@ public class SchedulingService {
                 .count();
 
         log.info("Solved schedule {}: score {}, {} new assignments, {} slots left empty",
-                scheduleId, solution.getScore(), saved, stillEmpty);
-
-        return new SolveResponse(
-                scheduleId,
-                String.valueOf(solution.getScore()),
-                solution.getSlots().size(),
-                (int) pinned,
-                saved,
-                (int) stillEmpty,
-                List.of());
+                solution.getScheduleId(), solution.getScore(), saved, stillEmpty);
     }
 
     private EmployeeSchedule runSolver(Long scheduleId, EmployeeSchedule problem) {
@@ -93,5 +94,15 @@ public class SchedulingService {
     private void requireDraft(Long scheduleId) {
         Schedule schedule = guard.require(scheduleId);
         guard.requireStatus(schedule, ScheduleStatus.DRAFT);
+    }
+
+    // The screen calls this every second while it shows the spinner.
+    public SolveStatusResponse status(Long scheduleId) {
+        SolverStatus status = solverManager.getSolverStatus(scheduleId);
+
+        return new SolveStatusResponse(
+                scheduleId,
+                status != SolverStatus.NOT_SOLVING,
+                status.name());
     }
 }
