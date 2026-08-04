@@ -35,6 +35,7 @@ public class ShiftConstraints implements ConstraintProvider {
                 oneShiftPerDay(factory),
                 restBetweenShifts(factory),
                 maxShiftsPerWeek(factory),
+                wrongPosition(factory),
                 unfilledSlot(factory),
                 essentialPositionWithNobody(factory),
                 employeeOnLeave(factory),
@@ -76,6 +77,15 @@ public class ShiftConstraints implements ConstraintProvider {
                 .asConstraint("Max shifts per week");
     }
 
+    // The employee in a slot has to actually hold the position it asks for.
+    // Nothing else stops the solver putting a cook where a waiter is needed.
+    Constraint wrongPosition(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .filter(slot -> !slot.getEmployee().getJobPositionId().equals(slot.getJobPositionId()))
+                .penalize(HardMediumSoftScore.ONE_HARD)
+                .asConstraint("Wrong position for the slot");
+    }
+
     // A slot nobody ended up in. Not forbidden, but the solver should avoid it
     // unless there is genuinely nobody left who can work.
     Constraint unfilledSlot(ConstraintFactory factory) {
@@ -95,10 +105,9 @@ public class ShiftConstraints implements ConstraintProvider {
                 .filter(ShiftSlot::isEssential)
                 .groupBy(slot -> slot.getShift().getId(),
                         ShiftSlot::getJobPositionId,
-                        ConstraintCollectors.conditionally(
-                                slot -> slot.getEmployee() != null,
-                                ConstraintCollectors.count()))
-                .filter((shiftId, positionId, filled) -> filled == 0)
+                        ConstraintCollectors.toSet(ShiftSlot::getEmployee))
+                .filter((shiftId, positionId, employees) ->
+                        employees.size() == 1 && employees.contains(null))
                 .penalize(HardMediumSoftScore.ofMedium(EMPTY_POSITION_WEIGHT))
                 .asConstraint("Essential position with nobody");
     }

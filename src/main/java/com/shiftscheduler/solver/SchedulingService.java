@@ -53,6 +53,8 @@ public class SchedulingService {
                 problem.getEmployees().size(), problem.getUnavailableDays().size(),
                 problem.getDislikes().size());
 
+        long essentialSlots = problem.getSlots().stream().filter(ShiftSlot::isEssential).count();
+        log.info("Essential slots: {} of {}", essentialSlots, problem.getSlots().size());
         EmployeeSchedule solution = runSolver(scheduleId, problem);
 
         int saved = saver.save(solution);

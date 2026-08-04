@@ -242,4 +242,23 @@ class ShiftConstraintsTest {
 
         return slots;
     }
+
+    @Test
+    void anEmployeeCannotFillAPositionTheyDoNotHold() {
+        PlanningShift morning = shift(1L, SUN, 7, 15);
+
+        ShiftSlot slot = new ShiftSlot(1L, morning, SUPERVISOR, "Shift supervisor", true);
+        slot.setEmployee(maya);   // maya is an agent
+
+        verifier.verifyThat(ShiftConstraints::wrongPosition)
+                .given(slot)
+                .penalizesBy(1);
+    }
+
+    @Test
+    void theRightPositionIsNotPenalised() {
+        verifier.verifyThat(ShiftConstraints::wrongPosition)
+                .given(filled(1L, shift(1L, SUN, 7, 15), maya))
+                .penalizesBy(0);
+    }
 }
