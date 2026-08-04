@@ -19,4 +19,6 @@ public interface EmployeeLeaveRepository extends JpaRepository<EmployeeLeave, Lo
 
     List<EmployeeLeave> findByEmployeeIdAndLeaveDateBetween(
             Long employeeId, LocalDate from, LocalDate to);
+
+    List<EmployeeLeave> findByLeaveDateBetween(LocalDate from, LocalDate to);
 }

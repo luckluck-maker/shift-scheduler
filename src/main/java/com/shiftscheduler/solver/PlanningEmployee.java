@@ -13,16 +13,20 @@ public class PlanningEmployee {
 
     private String fullName;
     private Long jobPositionId;
-    private int maxWeeklyMinutes;
+
+    // How many shifts this employee can work this week — the contract converted
+    // to shifts, less any days they are on leave.
+    private int availableShifts;
 
     public PlanningEmployee() {
     }
 
-    public PlanningEmployee(Long id, String fullName, Long jobPositionId, int maxWeeklyMinutes) {
+    public PlanningEmployee(Long id, String fullName, Long jobPositionId,
+                            int availableShifts) {
         this.id = id;
         this.fullName = fullName;
         this.jobPositionId = jobPositionId;
-        this.maxWeeklyMinutes = maxWeeklyMinutes;
+        this.availableShifts = availableShifts;
     }
 
     public Long getId() {
@@ -37,10 +41,9 @@ public class PlanningEmployee {
         return jobPositionId;
     }
 
-    public int getMaxWeeklyMinutes() {
-        return maxWeeklyMinutes;
+    public int getAvailableShifts() {
+        return availableShifts;
     }
-
     @Override
     public String toString() {
         return fullName;
@@ -55,4 +58,5 @@ public class PlanningEmployee {
     public int hashCode() {
         return id.hashCode();
     }
+
 }

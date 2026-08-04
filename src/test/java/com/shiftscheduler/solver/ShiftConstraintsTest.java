@@ -15,6 +15,10 @@ class ShiftConstraintsTest {
     private static final Long AGENT = 2L;
     private static final Long SUPERVISOR = 1L;
 
+    // Full time here is five shifts a week. Tests that care about the contract
+    // set their own.
+    private static final int FULL_TIME = 5;
+
     private final ConstraintVerifier<ShiftConstraints, EmployeeSchedule> verifier =
             ConstraintVerifier.build(new ShiftConstraints(), EmployeeSchedule.class, ShiftSlot.class);
 
@@ -118,7 +122,7 @@ class ShiftConstraintsTest {
     void anEssentialPositionWithNobodyIsPenalised() {
         verifier.verifyThat(ShiftConstraints::essentialPositionWithNobody)
                 .given(empty(1L, shift(1L, SUN, 7, 15), AGENT, true))
-                .penalizesBy(1);          // ← היה 9
+                .penalizesBy(1);
     }
 
     @Test
@@ -145,13 +149,57 @@ class ShiftConstraintsTest {
         verifier.verifyThat(ShiftConstraints::essentialPositionWithNobody)
                 .given(empty(1L, morning, AGENT, true),
                         empty(2L, morning, 3L, true))
-                .penalizesBy(2);          // ← היה 18
+                .penalizesBy(2);
+    }
+
+    // ----- overtime beyond contract -----
+
+    @Test
+    void oneShiftOverTheContractIsPenalisedOnce() {
+        verifier.verifyThat(ShiftConstraints::overtimeBeyondContract)
+                .given((Object[]) weekFor(contracted(3), 4))
+                .penalizesBy(1);
+    }
+
+    @Test
+    void twoShiftsOverCostFourTimesAsMuch() {
+        verifier.verifyThat(ShiftConstraints::overtimeBeyondContract)
+                .given((Object[]) weekFor(contracted(3), 5))
+                .penalizesBy(4);
+    }
+
+    @Test
+    void workingTheContractExactlyIsFine() {
+        verifier.verifyThat(ShiftConstraints::overtimeBeyondContract)
+                .given((Object[]) weekFor(contracted(3), 3))
+                .penalizesBy(0);
+    }
+
+    // ----- undertime below contract -----
+
+    @Test
+    void oneShiftUnderTheContractIsPenalisedOnce() {
+        verifier.verifyThat(ShiftConstraints::undertimeBelowContract)
+                .given((Object[]) weekFor(contracted(5), 4))
+                .penalizesBy(1);
+    }
+
+    @Test
+    void twoShiftsUnderCostFourTimesAsMuch() {
+        verifier.verifyThat(ShiftConstraints::undertimeBelowContract)
+                .given((Object[]) weekFor(contracted(5), 3))
+                .penalizesBy(4);
     }
 
     // ----- helpers -----
 
     private static PlanningEmployee employee(Long id, String name) {
-        return new PlanningEmployee(id, name, AGENT, 40 * 60);
+        return new PlanningEmployee(id, name, AGENT, FULL_TIME);
+    }
+
+    // Someone whose contract is worth a set number of shifts this week.
+    private static PlanningEmployee contracted(int shifts) {
+        return new PlanningEmployee(7L, "Noa", AGENT, shifts);
     }
 
     private static PlanningShift shift(Long id, LocalDate date, int startHour, int endHour) {
@@ -179,17 +227,19 @@ class ShiftConstraintsTest {
         return new ShiftSlot(id, shift, positionId, "Position " + positionId, essential);
     }
 
+    // A run of consecutive days worked by the same person.
     private static ShiftSlot[] week(int shiftCount) {
+        return weekFor(employee(3L, "Maya"), shiftCount);
+    }
+
+    private static ShiftSlot[] weekFor(PlanningEmployee employee, int shiftCount) {
         ShiftSlot[] slots = new ShiftSlot[shiftCount];
 
         for (int i = 0; i < shiftCount; i++) {
-            slots[i] = filled(i + 1L, shift(i + 1L, SUN.plusDays(i), 7, 15), maya());
+            ShiftSlot slot = filled(i + 1L, shift(i + 1L, SUN.plusDays(i), 7, 15), employee);
+            slots[i] = slot;
         }
 
         return slots;
-    }
-
-    private static PlanningEmployee maya() {
-        return new PlanningEmployee(3L, "Maya", AGENT, 40 * 60);
     }
 }

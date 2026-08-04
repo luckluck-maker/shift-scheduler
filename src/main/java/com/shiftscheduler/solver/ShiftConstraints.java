@@ -2,6 +2,7 @@ package com.shiftscheduler.solver;
 
 import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 import ai.timefold.solver.core.api.score.stream.*;
+import com.shiftscheduler.domain.PreferenceType;
 
 import java.time.Duration;
 
@@ -19,6 +20,15 @@ public class ShiftConstraints implements ConstraintProvider {
     // Setting parameter to differentiate between a whole empty position and a single missing slot
     private static final int EMPTY_POSITION_WEIGHT = 9;
 
+    // Setting parameter for PREFER_NOT cost
+    private static final int PREFERENCE_WEIGHT = 3;
+
+    // Parameters for overtime and Undertime.
+    // Different values since getting less work than promised is worse than getting more.
+    // Both squared, so two shifts out cost four times one.
+    private static final int OVERTIME_WEIGHT = 3;
+    private static final int UNDERTIME_WEIGHT = 4;
+
     @Override
     public Constraint[] defineConstraints(ConstraintFactory factory) {
         return new Constraint[]{
@@ -26,7 +36,13 @@ public class ShiftConstraints implements ConstraintProvider {
                 restBetweenShifts(factory),
                 maxShiftsPerWeek(factory),
                 unfilledSlot(factory),
-                essentialPositionWithNobody(factory)
+                essentialPositionWithNobody(factory),
+                employeeOnLeave(factory),
+                employeeCannotWork(factory),
+                employeePrefersNotTo(factory),
+                overtimeBeyondContract(factory),
+                undertimeBelowContract(factory),
+
         };
     }
 
@@ -87,6 +103,75 @@ public class ShiftConstraints implements ConstraintProvider {
                 .asConstraint("Essential position with nobody");
     }
 
+    // Assigned on a shift while leave has been entered for the same day shift day
+    Constraint employeeOnLeave(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .join(UnavailableDay.class,
+                        Joiners.equal(slot -> slot.getEmployee().getId(),
+                                UnavailableDay::employeeId),
+                        Joiners.equal(slot -> slot.getShift().getShiftDate(),
+                                UnavailableDay::date))
+                .penalize(HardMediumSoftScore.ONE_HARD)
+                .asConstraint("Employee on leave");
+    }
+
+    // A shift the employee marked as one they can't work.
+    Constraint employeeCannotWork(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .join(ShiftDislike.class,
+                        Joiners.equal(slot -> slot.getEmployee().getId(),
+                                ShiftDislike::employeeId),
+                        Joiners.equal(slot -> slot.getShift().getId(),
+                                ShiftDislike::shiftId))
+                .filter((slot, dislike) -> dislike.type() == PreferenceType.CANNOT)
+                .penalize(HardMediumSoftScore.ONE_HARD)
+                .asConstraint("Employee cannot work");
+    }
+
+    // A shift the employee would rather not work. Worth avoiding, but the least severe violation.
+    // Therefore, set as soft.
+    Constraint employeePrefersNotTo(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .join(ShiftDislike.class,
+                        Joiners.equal(slot -> slot.getEmployee().getId(),
+                                ShiftDislike::employeeId),
+                        Joiners.equal(slot -> slot.getShift().getId(),
+                                ShiftDislike::shiftId))
+                .filter((slot, dislike) -> dislike.type() == PreferenceType.PREFERS_NOT)
+                .penalize(HardMediumSoftScore.ofSoft(PREFERENCE_WEIGHT))
+                .asConstraint("Employee prefers not to");
+    }
+
+    // More shifts than the contract covers. Overtime costs money, but it isn't
+    // against the rules, so it sits with the preferences and not above them.
+    Constraint overtimeBeyondContract(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .groupBy(ShiftSlot::getEmployee, ConstraintCollectors.count())
+                .filter((employee, shifts) -> shifts > employee.getAvailableShifts())
+                .penalize(HardMediumSoftScore.ofSoft(OVERTIME_WEIGHT),
+                        (employee, shifts) -> squared(shifts - employee.getAvailableShifts()))
+                .asConstraint("Overtime beyond contract");
+    }
+
+    // Fewer shifts than the contract covers. Squaring it is what spreads the
+    // gap around - one person 2 shifts short costs more than 2 people
+    // 1 shift short each.
+    Constraint undertimeBelowContract(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .groupBy(ShiftSlot::getEmployee, ConstraintCollectors.count())
+                .filter((employee, shifts) -> shifts < employee.getAvailableShifts())
+                .penalize(HardMediumSoftScore.ofSoft(UNDERTIME_WEIGHT),
+                        (employee, shifts) -> squared(employee.getAvailableShifts() - shifts))
+                .asConstraint("Undertime below contract");
+    }
+
+    private static int squared(long shifts) {
+        return  (int) (shifts * shifts);
+    }
+
+
+    // forEachUniquePair gives no order, so need to check which shift comes first
+    // before subtracting.
     private static long restHoursBetween(ShiftSlot first, ShiftSlot second) {
         var a = first.getShift();
         var b = second.getShift();
