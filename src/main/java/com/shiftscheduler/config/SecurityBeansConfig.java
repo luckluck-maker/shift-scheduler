@@ -17,11 +17,15 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
+// Beans the auth code needs but that aren't about the filter chain.
 @Configuration
 public class SecurityBeansConfig {
 
     private final SecretKey jwtKey;
 
+    // The secret comes from JWT_SECRET in the environment, with a dev fallback
+    // in application.properties. HS256 signs with a 256-bit key, so anything
+    // shorter is rejected here rather than at the first login attempt.
     public SecurityBeansConfig(@Value("${app.jwt.secret}") String secret) {
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
@@ -30,18 +34,20 @@ public class SecurityBeansConfig {
         }
         this.jwtKey = new SecretKeySpec(bytes, "HmacSHA256");
     }
-
+    // For password hashing I've chosen Argon2 as it is deliberately slow and memory hungry, which
+    // providers a good defense against brute force attacks.
+    // The static factory picks the parameters Spring recommends.
     @Bean
     public PasswordEncoder passwordEncoder() {
         return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     }
 
+    // Same secret signs and verifies. HS256 is symmetric, so one key does both.
     @Bean
     public JwtEncoder jwtEncoder() {
         JWKSource<SecurityContext> source = new ImmutableSecret<>(jwtKey);
         return new NimbusJwtEncoder(source);
     }
-
     @Bean
     public JwtDecoder jwtDecoder() {
         return NimbusJwtDecoder.withSecretKey(jwtKey).build();

@@ -63,7 +63,7 @@ public class Schedule {
         return version;
     }
 
-    // @Version only bumps when this entity changes. Assignments and
+    // @Version triggers only when this entity changes. Assignments and
     // requirements live in other tables, so we touch this field to make
     // Hibernate see a change and raise the version.
     public void touch() {

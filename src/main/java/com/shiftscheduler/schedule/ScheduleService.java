@@ -19,8 +19,11 @@ import com.shiftscheduler.repository.ShiftTypeRepository;
 import com.shiftscheduler.web.ConflictException;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.shiftscheduler.notification.ScheduleNotifier;
+import org.springframework.jms.core.JmsTemplate;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -47,6 +50,7 @@ public class ScheduleService {
     private final AssignmentRepository assignmentRepository;
     private final ScheduleGuard guard;
     private final CurrentUserProvider currentUser;
+    private final JmsTemplate jmsTemplate;
 
     public ScheduleService(ScheduleRepository scheduleRepository,
                            ShiftRepository shiftRepository,
@@ -56,7 +60,7 @@ public class ScheduleService {
                            ShiftPreferenceRepository preferenceRepository,
                            AssignmentRepository assignmentRepository,
                            ScheduleGuard guard,
-                           CurrentUserProvider currentUser) {
+                           CurrentUserProvider currentUser, JmsTemplate jmsTemplate) {
         this.scheduleRepository = scheduleRepository;
         this.shiftRepository = shiftRepository;
         this.requirementRepository = requirementRepository;
@@ -66,6 +70,7 @@ public class ScheduleService {
         this.assignmentRepository = assignmentRepository;
         this.guard = guard;
         this.currentUser = currentUser;
+        this.jmsTemplate = jmsTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -241,6 +246,8 @@ public class ScheduleService {
 
         schedule.setStatus(ScheduleStatus.PUBLISHED);
         guard.markChanged(schedule);
+
+        jmsTemplate.convertAndSend(ScheduleNotifier.TOPIC, id);
 
         return findById(id);
     }

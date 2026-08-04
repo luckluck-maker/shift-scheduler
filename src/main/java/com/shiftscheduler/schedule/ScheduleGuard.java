@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+// The checks every schedule action needs: does it exist, does its status
+// allow this, and is the client's version current.
 @Service
 public class ScheduleGuard {
 
@@ -24,6 +26,8 @@ public class ScheduleGuard {
                 .orElseThrow(() -> new ResourceNotFoundException("Schedule " + id + " not found"));
     }
 
+    // Checks if the action is allowed in the current schedule status.
+    // If not, tells the user what the status is and which ones would allow it.
     public void requireStatus(Schedule schedule, ScheduleStatus... allowed) {
         boolean ok = Arrays.asList(allowed).contains(schedule.getStatus());
 

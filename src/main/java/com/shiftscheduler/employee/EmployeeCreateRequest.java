@@ -1,6 +1,7 @@
 package com.shiftscheduler.employee;
 
 import com.shiftscheduler.domain.Role;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -13,8 +14,12 @@ public record EmployeeCreateRequest(
         @Size(max = 100)
         String fullName,
 
+        // The work email serves dual use: for the login & to receive the publish notifications
+        // The idea is that the worker should have access to the shift scheduler
+        // only as long as he works for the company
         @NotBlank
-        @Size(min = 3, max = 50)
+        @Email
+        @Size(max = 120)
         String username,
 
         @NotBlank

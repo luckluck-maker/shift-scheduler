@@ -11,6 +11,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
+
+// Everything about who can reach what. Runs before any controller does.
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -21,15 +24,25 @@ public class SecurityConfig {
                                             JwtAuthenticationConverter jwtAuthenticationConverter)
             throws Exception {
         http
+                // The token lives in a SameSite=Strict cookie, so the browser
+                // won't send it from another site. That is what CSRF tokens
+                // are for, therefore it is not required.
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // stateless - each request is a standalone
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+
+                        // logout is open on purpose: an expired token still
+                        // needs a way to clear the cookie.
                         .requestMatchers("/api/health", "/api/auth/login", "/api/auth/logout")
                         .permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        // Spring looks in the Authorization header by default.
+                        // changing it so it'll look in the cookie.
                         .bearerTokenResolver(new CookieBearerTokenResolver())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
                 );
@@ -37,6 +50,8 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // The token says "role": "MANAGER". Spring wants ROLE_MANAGER. Without
+    // this bridge every hasRole check fails.
     @Bean
     JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();

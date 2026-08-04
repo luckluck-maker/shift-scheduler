@@ -19,7 +19,7 @@ CREATE TABLE employee
 (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY,
     full_name        VARCHAR(100) NOT NULL,
-    username         VARCHAR(50)  NOT NULL,
+    username         VARCHAR(120) NOT NULL,
     password_hash    VARCHAR(100) NOT NULL,
     role             VARCHAR(20)  NOT NULL,
     max_weekly_hours INT          NOT NULL,

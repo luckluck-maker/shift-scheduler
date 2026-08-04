@@ -1,5 +1,12 @@
 services:
 
+  mailhog:
+    image: mailhog/mailhog
+    container_name: shift-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   mysql:
     image: mysql:8.4
     container_name: shift-mysql
@@ -41,3 +48,4 @@ services:
 volumes:
   mysql-data:
   artemis-data:
+
