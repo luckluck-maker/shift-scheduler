@@ -1,10 +1,6 @@
 package com.shiftscheduler.assignment;
 
-import com.shiftscheduler.domain.Assignment;
-import com.shiftscheduler.domain.Employee;
-import com.shiftscheduler.domain.PreferenceType;
-import com.shiftscheduler.domain.Shift;
-import com.shiftscheduler.domain.ShiftType;
+import com.shiftscheduler.domain.*;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.EmployeeLeaveRepository;
 import com.shiftscheduler.repository.ShiftPreferenceRepository;
@@ -27,9 +23,6 @@ public class ScheduleRules {
     public static final String RULE_ONE_PER_DAY = "ONE_SHIFT_PER_DAY";
     public static final String RULE_WEEKLY_HOURS = "MAX_WEEKLY_HOURS";
     public static final String RULE_WEEKLY_SHIFTS = "MAX_SHIFTS_PER_WEEK";
-
-    private static final int MIN_REST_HOURS = 8;
-    private static final int MAX_SHIFTS_PER_WEEK = 6;
 
     private final AssignmentRepository assignmentRepository;
     private final EmployeeLeaveRepository leaveRepository;
@@ -123,9 +116,9 @@ public class ScheduleRules {
 
         for (Assignment assignment : existing) {
             Shift other = assignment.getShift();
-            long gap = restHoursBetween(start, end, startsAt(other), endsAt(other));
+            long gap = SchedulingRules.restHoursBetween(start, end, startsAt(other), endsAt(other));
 
-            if (gap < MIN_REST_HOURS) {
+            if (gap < SchedulingRules.MIN_REST_HOURS) {
                 violations.add(RuleViolation.blocking(
                         RULE_REST,
                         "Only " + gap + "h rest around the shift on " + other.getShiftDate()));
@@ -135,7 +128,7 @@ public class ScheduleRules {
 
         long shiftCount = existing.size() + 1L;
 
-        if (shiftCount > MAX_SHIFTS_PER_WEEK) {
+        if (shiftCount > SchedulingRules.MAX_SHIFTS_PER_WEEK) {
             violations.add(RuleViolation.blocking(
                     RULE_WEEKLY_SHIFTS,
                     employee.getFullName() + " would work " + shiftCount + " shifts this week"));

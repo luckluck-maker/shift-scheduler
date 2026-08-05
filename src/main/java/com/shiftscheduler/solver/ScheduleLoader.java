@@ -1,12 +1,6 @@
 package com.shiftscheduler.solver;
 
-import com.shiftscheduler.domain.Assignment;
-import com.shiftscheduler.domain.Employee;
-import com.shiftscheduler.domain.PreferenceType;
-import com.shiftscheduler.domain.Schedule;
-import com.shiftscheduler.domain.Shift;
-import com.shiftscheduler.domain.ShiftRequirement;
-import com.shiftscheduler.domain.ShiftType;
+import com.shiftscheduler.domain.*;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.EmployeeLeaveRepository;
 import com.shiftscheduler.repository.EmployeeRepository;
@@ -17,6 +11,7 @@ import com.shiftscheduler.repository.ShiftRequirementRepository;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.shiftscheduler.domain.SchedulingRules;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -112,7 +107,8 @@ public class ScheduleLoader {
                             employee.getId(),
                             employee.getFullName(),
                             employee.getJobPosition().getId(),
-                            Math.max(0, contracted - away));
+                            Math.max(0, contracted - away),
+                            SchedulingRules.minimumShiftsWith(away));
                 })
                 .collect(Collectors.toMap(PlanningEmployee::getId, Function.identity()));
     }

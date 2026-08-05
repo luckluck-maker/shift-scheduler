@@ -1,6 +1,7 @@
 package com.shiftscheduler.solver;
 
 import ai.timefold.solver.core.api.score.stream.test.ConstraintVerifier;
+import com.shiftscheduler.domain.SchedulingRules;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -194,12 +195,12 @@ class ShiftConstraintsTest {
     // ----- helpers -----
 
     private static PlanningEmployee employee(Long id, String name) {
-        return new PlanningEmployee(id, name, AGENT, FULL_TIME);
+        return new PlanningEmployee(id, name, AGENT, FULL_TIME, SchedulingRules.MIN_SHIFTS_PER_WEEK);
     }
 
     // Someone whose contract is worth a set number of shifts this week.
     private static PlanningEmployee contracted(int shifts) {
-        return new PlanningEmployee(7L, "Noa", AGENT, shifts);
+        return new PlanningEmployee(7L, "Noa", AGENT, shifts, SchedulingRules.MIN_SHIFTS_PER_WEEK);
     }
 
     private static PlanningShift shift(Long id, LocalDate date, int startHour, int endHour) {
@@ -261,4 +262,28 @@ class ShiftConstraintsTest {
                 .given(filled(1L, shift(1L, SUN, 7, 15), maya))
                 .penalizesBy(0);
     }
+
+
+    @Test
+    void beingBelowTheMinimumIsPenalised() {
+        // contracted for 5, minimum 2, given only 1
+        PlanningEmployee maya = new PlanningEmployee(3L, "Maya", AGENT, 5, 2);
+
+        ShiftSlot slot = filled(1L, shift(1L, SUN, 7, 15), maya);
+
+        verifier.verifyThat(ShiftConstraints::belowMinimumShifts)
+                .given(slot)
+                .penalizesBy(1);
+    }
+
+    @Test
+    void meetingTheMinimumIsFine() {
+        PlanningEmployee maya = new PlanningEmployee(3L, "Maya", AGENT, 5, 2);
+
+        verifier.verifyThat(ShiftConstraints::belowMinimumShifts)
+                .given(filled(1L, shift(1L, SUN, 7, 15), maya),
+                        filled(2L, shift(2L, MON, 7, 15), maya))
+                .penalizesBy(0);
+    }
 }
+

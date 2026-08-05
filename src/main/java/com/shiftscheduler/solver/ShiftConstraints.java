@@ -3,6 +3,7 @@ package com.shiftscheduler.solver;
 import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 import ai.timefold.solver.core.api.score.stream.*;
 import com.shiftscheduler.domain.PreferenceType;
+import com.shiftscheduler.domain.SchedulingRules;
 
 import java.time.Duration;
 
@@ -13,9 +14,6 @@ import java.time.Duration;
 //   medium - will include the understaffed assignments
 //   soft   - will include the employees preferences and fairness
 public class ShiftConstraints implements ConstraintProvider {
-
-    private static final int MIN_REST_HOURS = 8;
-    private static final int MAX_SHIFTS_PER_WEEK = 6;
 
     // Setting parameter to differentiate between a whole empty position and a single missing slot
     private static final int EMPTY_POSITION_WEIGHT = 9;
@@ -28,6 +26,11 @@ public class ShiftConstraints implements ConstraintProvider {
     // Both squared, so two shifts out cost four times one.
     private static final int OVERTIME_WEIGHT = 3;
     private static final int UNDERTIME_WEIGHT = 4;
+
+    // Getting 0 is worse than being one short.
+    // Weighted above the minimum rule so the solver
+    // spreads what little there is rather than leaving someone out entirely.
+    private static final int NO_SHIFTS_WEIGHT = 3;
 
     @Override
     public Constraint[] defineConstraints(ConstraintFactory factory) {
@@ -43,6 +46,8 @@ public class ShiftConstraints implements ConstraintProvider {
                 employeePrefersNotTo(factory),
                 overtimeBeyondContract(factory),
                 undertimeBelowContract(factory),
+                belowMinimumShifts(factory),
+                employeeWithNoShifts(factory)
 
         };
     }
@@ -62,7 +67,7 @@ public class ShiftConstraints implements ConstraintProvider {
     Constraint restBetweenShifts(ConstraintFactory factory) {
         return factory.forEachUniquePair(ShiftSlot.class,
                         Joiners.equal(ShiftSlot::getEmployee))
-                .filter((first, second) -> restHoursBetween(first, second) < MIN_REST_HOURS)
+                .filter((first, second) -> restHoursBetween(first, second) < SchedulingRules.MIN_REST_HOURS)
                 .penalize(HardMediumSoftScore.ONE_HARD)
                 .asConstraint("Rest between shifts");
     }
@@ -71,9 +76,9 @@ public class ShiftConstraints implements ConstraintProvider {
     Constraint maxShiftsPerWeek(ConstraintFactory factory) {
         return factory.forEach(ShiftSlot.class)
                 .groupBy(ShiftSlot::getEmployee, ConstraintCollectors.count())
-                .filter((employee, count) -> count > MAX_SHIFTS_PER_WEEK)
+                .filter((employee, count) -> count > SchedulingRules.MAX_SHIFTS_PER_WEEK)
                 .penalize(HardMediumSoftScore.ONE_HARD,
-                        (employee, count) -> count - MAX_SHIFTS_PER_WEEK)
+                        (employee, count) -> count - SchedulingRules.MAX_SHIFTS_PER_WEEK)
                 .asConstraint("Max shifts per week");
     }
 
@@ -174,6 +179,31 @@ public class ShiftConstraints implements ConstraintProvider {
                 .asConstraint("Undertime below contract");
     }
 
+    // Minimum shift rule. Undertime alone doesn't protect part-time workers.
+    // Someone contracted for 2 shifts who loses 1 has lost half their week,
+    // while someone on five who loses one has barely noticed. Undertime scores both the same
+    // Set as medium rule in order to win against undertime &
+    // it shouldn't compete against the other medium rules as they deal with
+    // scenarios where shifts are not covered while help prioritizing more fair assignment overall.
+    Constraint belowMinimumShifts(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .groupBy(ShiftSlot::getEmployee, ConstraintCollectors.count())
+                .filter((employee, shifts) -> shifts < employee.getMinimumShifts())
+                .penalize(HardMediumSoftScore.ONE_MEDIUM,
+                        (employee, shifts) -> (int) (employee.getMinimumShifts() - shifts))
+                .asConstraint("Below minimum shifts");
+    }
+
+    // edge case of employee not getting any shifts at all - will be missing by belowMinimumShifts
+    // since groupBy will not make a group for him
+    Constraint employeeWithNoShifts(ConstraintFactory factory) {
+        return factory.forEach(PlanningEmployee.class)
+                .filter(employee -> employee.getMinimumShifts() > 0)
+                .ifNotExists(ShiftSlot.class, Joiners.equal(e -> e, ShiftSlot::getEmployee))
+                .penalize(HardMediumSoftScore.ofMedium(NO_SHIFTS_WEIGHT))
+                .asConstraint("Employee with no shifts");
+    }
+
     private static int squared(long shifts) {
         return  (int) (shifts * shifts);
     }
@@ -181,18 +211,9 @@ public class ShiftConstraints implements ConstraintProvider {
 
     // forEachUniquePair gives no order, so need to check which shift comes first
     // before subtracting.
-    private static long restHoursBetween(ShiftSlot first, ShiftSlot second) {
-        var a = first.getShift();
-        var b = second.getShift();
-
-        if (!a.getEnd().isAfter(b.getStart())) {
-            return Duration.between(a.getEnd(), b.getStart()).toHours();
-        }
-
-        if (!b.getEnd().isAfter(a.getStart())) {
-            return Duration.between(b.getEnd(), a.getStart()).toHours();
-        }
-
-        return 0;
+    private static long restHoursBetween(ShiftSlot a, ShiftSlot b) {
+        return SchedulingRules.restHoursBetween(
+                a.getShift().getStart(), a.getShift().getEnd(),
+                b.getShift().getStart(), b.getShift().getEnd());
     }
 }
