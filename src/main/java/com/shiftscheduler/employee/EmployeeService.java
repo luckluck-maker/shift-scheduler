@@ -6,6 +6,7 @@ import com.shiftscheduler.domain.Role;
 import com.shiftscheduler.repository.EmployeeRepository;
 import com.shiftscheduler.repository.JobPositionRepository;
 import com.shiftscheduler.web.ConflictException;
+import com.shiftscheduler.web.ErrorCode;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
 import org.springframework.data.domain.Sort;
@@ -108,7 +109,8 @@ public class EmployeeService {
     private void requireCurrentVersion(Employee employee, Long expected) {
         if (expected != employee.getVersion()) {
             throw new ConflictException(
-                    "This employee was changed by someone else. Reload and try again.");
+                    "This employee was changed by someone else. Reload and try again.",
+                    ErrorCode.STALE_VERSION);
         }
     }
 
@@ -120,7 +122,9 @@ public class EmployeeService {
                 .count();
 
         if (remaining == 0) {
-            throw new ValidationException("The system must keep at least one active manager");
+            throw new ValidationException(
+                    "The system must keep at least one active manager",
+                    ErrorCode.LAST_MANAGER);
         }
     }
 

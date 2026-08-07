@@ -17,22 +17,22 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
-        return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), null);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex) {
-        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
 
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
-        return build(HttpStatus.CONFLICT, ex.getMessage());
+        return build(HttpStatus.CONFLICT, ex.getMessage(), ex.getCode());
     }
 
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ApiError> handleValidationRule(ValidationException ex) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), ex.getCode());
     }
 
     @ExceptionHandler(AssignmentRejectedException.class)
@@ -56,11 +56,13 @@ public class ApiExceptionHandler {
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
                 .collect(Collectors.joining("; "));
 
-        return build(HttpStatus.BAD_REQUEST, details);
+        return build(HttpStatus.BAD_REQUEST, details, null);
     }
 
-    private ResponseEntity<ApiError> build(HttpStatus status, String message) {
-        ApiError body = new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message);
+    private ResponseEntity<ApiError> build(HttpStatus status, String message, String code) {
+        ApiError body = new ApiError(
+                Instant.now(), status.value(), status.getReasonPhrase(), code, message);
+
         return ResponseEntity.status(status).body(body);
     }
 }

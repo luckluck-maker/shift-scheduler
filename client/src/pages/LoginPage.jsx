@@ -20,7 +20,9 @@ export default function LoginPage() {
             await login(username, password)
             navigate('/')
         } catch (err) {
-            setError(err.message)
+            setError(err.status === 401
+                ? 'כתובת הדוא״ל או הסיסמה שגויים'
+                : 'ההתחברות נכשלה, נסה שוב')
         } finally {
             setSubmitting(false)
         }
@@ -29,19 +31,20 @@ export default function LoginPage() {
     return (
         <div className="login-screen">
             <form className="login-card" onSubmit={handleSubmit}>
-                <h1>Shift Scheduler</h1>
-                <p className="subtitle">Sign in to continue</p>
+                <h1>סידור משמרות</h1>
+                <p className="subtitle">התחברות למערכת</p>
 
-                <label htmlFor="username">Username</label>
+                <label htmlFor="username">דוא״ל</label>
                 <input
                     id="username"
+                    type="email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
                     required
                 />
 
-                <label htmlFor="password">Password</label>
+                <label htmlFor="password">סיסמה</label>
                 <input
                     id="password"
                     type="password"
@@ -54,7 +57,7 @@ export default function LoginPage() {
                 {error && <p className="error">{error}</p>}
 
                 <button type="submit" disabled={submitting}>
-                    {submitting ? 'Signing in…' : 'Sign in'}
+                    {submitting ? 'מתחבר…' : 'כניסה'}
                 </button>
             </form>
         </div>

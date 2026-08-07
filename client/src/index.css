@@ -6,7 +6,13 @@
   --muted: #6b7683;
   --accent: #2f6f8f;
   --danger: #b23b3b;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --radius: 8px;
+
+  font-family: Rubik, system-ui, sans-serif;
   color: var(--text);
 }
 
@@ -18,6 +24,8 @@ body {
   margin: 0;
   background: var(--bg);
 }
+
+/* ----- login ----- */
 
 .login-screen {
   min-height: 100vh;
@@ -49,35 +57,183 @@ body {
   font-size: 0.9rem;
 }
 
-label {
+/* ----- frame ----- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0 1.5rem;
+  height: 3.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 600;
+}
+
+.menu {
+  display: flex;
+  gap: 1.2rem;
+  flex: 1;
+}
+
+.menu-link {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+  padding: 0.3rem 0;
+  border-bottom: 2px solid transparent;
+}
+
+.menu-link.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.who {
+  color: var(--muted);
+}
+
+.content {
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.page-head h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+/* ----- table ----- */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 0.92rem;
+}
+
+.table th {
+  text-align: right;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.row-muted {
+  color: var(--muted);
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.tag {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.4rem;
+}
+
+/* ----- forms ----- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field-label {
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.field-error {
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 1rem;
+  align-items: center;
   margin-top: 0.6rem;
 }
 
-input {
-  padding: 0.6rem 0.7rem;
+input, select {
+  padding: 0.55rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   background: var(--surface);
   color: var(--text);
+  font-family: inherit;
 }
 
 input:focus-visible,
+select:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 button {
-  margin-top: 1.4rem;
-  padding: 0.65rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 6px;
   background: var(--accent);
   color: #fff;
-  font-size: 1rem;
+  font-size: 0.92rem;
+  font-family: inherit;
   cursor: pointer;
 }
 
@@ -85,6 +241,58 @@ button:disabled {
   opacity: 0.6;
   cursor: default;
 }
+
+.link-button {
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.link-button.danger {
+  color: var(--danger);
+}
+
+.icon-button {
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+/* ----- modal ----- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 37, 48, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 26rem;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+/* ----- misc ----- */
 
 .error {
   margin: 0.8rem 0 0;
@@ -97,64 +305,95 @@ button:disabled {
   color: var(--muted);
 }
 
-.page {
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-}
-
-.page-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-}
-
-.page-header h1 {
-  font-size: 1.3rem;
-  margin: 0;
-}
-
-.link-button {
-  margin: 0;
-  padding: 0;
-  background: none;
-  color: var(--accent);
-  font-size: 0.9rem;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1.5rem;
-}
-
-.card h2 {
-  margin-top: 0;
-  font-size: 1.05rem;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.5rem 1.5rem;
-  margin: 0;
-  font-size: 0.92rem;
-}
-
-dt {
+label {
+  font-size: 0.85rem;
   color: var(--muted);
 }
 
-dd {
+.login-card label {
+  margin-top: 0.6rem;
+}
+
+.login-card button {
+  margin-top: 1.4rem;
+  padding: 0.65rem;
+  font-size: 1rem;
+}
+
+/* ----- sections, for screens with more than one list ----- */
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.8rem;
+}
+
+.section-head h2 {
+  font-size: 1.05rem;
   margin: 0;
+}
+
+.cell-muted {
+  color: var(--muted);
+}
+
+/* A quieter tag than .tag, for facts rather than status */
+.tag-soft {
+  display: inline-block;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-right: 0.5rem;
+}
+
+/* Two fields side by side, like a start and end time */
+.field-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.field-row .field {
+  flex: 1;
 }
 
 .hint {
-  margin: 1.2rem 0 0;
+  margin: 0;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
+}
+
+.time-range {
+  display: inline-block;
+  direction: ltr;
+}
+
+.table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.7rem 1rem;
+  border-bottom: none;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+  text-align: left;
 }

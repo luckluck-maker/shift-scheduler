@@ -4,6 +4,7 @@ import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.repository.ScheduleRepository;
 import com.shiftscheduler.web.ConflictException;
+import com.shiftscheduler.web.ErrorCode;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -38,14 +39,16 @@ public class ScheduleGuard {
 
             throw new ConflictException(
                     "This action needs the schedule to be " + expected
-                            + ", but it is " + schedule.getStatus());
+                            + ", but it is " + schedule.getStatus(),
+                    ErrorCode.WRONG_STATUS);
         }
     }
 
     public void requireVersion(Schedule schedule, Long expected) {
         if (expected != null && expected != schedule.getVersion()) {
             throw new ConflictException(
-                    "The schedule was changed by someone else. Reload and try again.");
+                    "The schedule was changed by someone else. Reload and try again.",
+                    ErrorCode.STALE_VERSION);
         }
     }
 
