@@ -10,12 +10,13 @@ export default function Layout() {
         ? [
             { to: '/week', label: 'סידור השבוע' },
             { to: '/employees', label: 'עובדים' },
+            { to: '/constraints', label: 'אילוצים' },
             { to: '/leaves', label: 'היעדרויות' },
             { to: '/positions-and-shift-types', label: 'תפקידים ומשמרות' },
         ]
         : [
             { to: '/my-schedule', label: 'הסידור' },
-            { to: '/my-constraints', label: 'האילוצים שלי' },
+            { to: '/constraints', label: 'האילוצים שלי' },
         ]
 
     return (

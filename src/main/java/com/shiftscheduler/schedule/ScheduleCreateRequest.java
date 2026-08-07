@@ -1,17 +1,14 @@
 package com.shiftscheduler.schedule;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
-import java.util.List;
 
+// Only the date. Every week gets every shift type there is; the job requirements
+// are copied from the previous week where there is one.
 public record ScheduleCreateRequest(
 
         @NotNull
-        LocalDate weekStart,
-
-        @Valid
-        List<ShiftTemplate> shifts
+        LocalDate weekStart
 ) {
 }
