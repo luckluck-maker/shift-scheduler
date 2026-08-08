@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
 // The week laid out as a table: a row per shift type, a column per day.
@@ -37,19 +39,34 @@ export default function ShiftGrid({ shifts, weekStart, renderCell,
     const byTypeAndDate = new Map(
         shifts.map((shift) => [`${shift.shiftTypeName}|${shift.shiftDate}`, shift]))
 
+// Selection is cumulative: dragging or clicking adds cells, and going over
+    // one that's already picked takes it out. There's no separate way to clear -
+    // you undo a selection the same way you made it.
     function startDrag(shiftId) {
         if (!selectable) {
             return
         }
 
         setDragging(true)
-        onSelectionChange(new Set([shiftId]))
+        toggle(shiftId)
     }
 
     function extendDrag(shiftId) {
         if (dragging) {
-            onSelectionChange(new Set([...selected, shiftId]))
+            toggle(shiftId)
         }
+    }
+
+    function toggle(shiftId) {
+        const next = new Set(selected)
+
+        if (next.has(shiftId)) {
+            next.delete(shiftId)
+        } else {
+            next.add(shiftId)
+        }
+
+        onSelectionChange(next)
     }
 
     return (

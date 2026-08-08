@@ -1,12 +1,12 @@
 package com.shiftscheduler.shifttype;
 
+import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.domain.ShiftType;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftTypeRepository;
 import com.shiftscheduler.web.ConflictException;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +14,14 @@ import java.time.Duration;
 import java.time.LocalTime;
 import java.util.List;
 
+// Shift types are kept as versions rather than edited in place. Once a week
+// has been published it shouldn't change, and it points straight at the shift
+// type - so changing the hours of one a published week uses leaves the old row
+// alone, switched off, and carries on with a new one. Weeks still being
+// planned move across.
+//
+// Only the active row is ever shown. The old ones exist so published weeks
+// still make sense.
 @Service
 public class ShiftTypeService {
 
@@ -28,7 +36,7 @@ public class ShiftTypeService {
 
     @Transactional(readOnly = true)
     public List<ShiftTypeResponse> findAll() {
-        return shiftTypeRepository.findAll(Sort.by("startTime")).stream()
+        return shiftTypeRepository.findByActiveTrueOrderByStartTimeAsc().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -42,58 +50,123 @@ public class ShiftTypeService {
     public ShiftTypeResponse create(ShiftTypeRequest request) {
         String name = request.name().trim();
 
-        if (shiftTypeRepository.existsByNameIgnoreCase(name)) {
-            throw new ConflictException("A shift type named '" + name + "' already exists");
-        }
+        requireDifferentTimes(request);
+        requireNameFree(name, null);
 
-        ShiftType shiftType = new ShiftType();
-        apply(shiftType, name, request);
-
-        return toResponse(shiftTypeRepository.save(shiftType));
+        return toResponse(activate(request, name));
     }
 
     @Transactional
     public ShiftTypeResponse update(Long id, ShiftTypeRequest request) {
-        ShiftType shiftType = require(id);
+        ShiftType current = require(id);
         String name = request.name().trim();
 
-        if (shiftTypeRepository.existsByNameIgnoreCaseAndIdNot(name, id)) {
-            throw new ConflictException("A shift type named '" + name + "' already exists");
+        requireDifferentTimes(request);
+        requireNameFree(name, id);
+
+        // The name is a label, the hours are what the schedule is built on, so
+        // renaming applies everywhere and changing the hours does not.
+        if (sameTimes(current, request)) {
+            current.setName(name);
+            return toResponse(current);
         }
 
-        apply(shiftType, name, request);
+        if (!shiftRepository.existsByShiftTypeIdAndScheduleStatus(
+                id, ScheduleStatus.PUBLISHED)) {
 
-        return toResponse(shiftType);
+            // An old version might already match what's being asked for. If it
+            // does, bring it back and let this row go rather than ending up
+            // with two identical ones.
+            ShiftType revived = shiftTypeRepository
+                    .findByNameIgnoreCaseAndStartTimeAndEndTimeAndActiveFalse(
+                            name, request.startTime(), request.endTime())
+                    .orElse(null);
+
+            if (revived == null) {
+                apply(current, request, name);
+                return toResponse(current);
+            }
+
+            revived.setActive(true);
+            current.setActive(false);
+
+            shiftRepository.movePlannedShifts(
+                    current.getId(), revived.getId(), ScheduleStatus.PUBLISHED);
+
+            return toResponse(revived);
+        }
+
+        current.setActive(false);
+
+        ShiftType replacement = activate(request, name);
+        shiftRepository.movePlannedShifts(
+                id, replacement.getId(), ScheduleStatus.PUBLISHED);
+
+        return toResponse(replacement);
     }
 
+    // Shifts in weeks that haven't been published go with it - those are still
+    // being planned, so an empty row for a type nobody wants is just noise.
+    // Published weeks keep theirs.
     @Transactional
     public void delete(Long id) {
         ShiftType shiftType = require(id);
 
-        if (shiftRepository.existsByShiftTypeId(id)) {
-            throw new ConflictException(
-                    "Cannot delete a shift type that is used by existing shifts");
-        }
-
-        shiftTypeRepository.delete(shiftType);
+        shiftRepository.deleteByShiftTypeIdAndScheduleStatusNot(id, ScheduleStatus.PUBLISHED);
+        shiftType.setActive(false);
     }
 
-    private void apply(ShiftType shiftType, String name, ShiftTypeRequest request) {
-        LocalTime start = request.startTime();
-        LocalTime end = request.endTime();
+    // Changing the hours and changing them back shouldn't leave two identical
+    // rows, so an old version that already matches comes back instead.
+    private ShiftType activate(ShiftTypeRequest request, String name) {
+        return shiftTypeRepository
+                .findByNameIgnoreCaseAndStartTimeAndEndTimeAndActiveFalse(
+                        name, request.startTime(), request.endTime())
+                .map(existing -> {
+                    existing.setActive(true);
+                    return existing;
+                })
+                .orElseGet(() -> {
+                    ShiftType created = new ShiftType();
+                    apply(created, request, name);
+                    return shiftTypeRepository.save(created);
+                });
+    }
 
-        if (start.equals(end)) {
-            throw new ValidationException("startTime and endTime must differ");
+    // Replaces the unique index that used to be on the name. It can't live in
+    // the database any more, because old versions hold the same name.
+    private void requireNameFree(String name, Long excludeId) {
+        shiftTypeRepository.findByNameIgnoreCaseAndActiveTrue(name)
+                .filter(other -> !other.getId().equals(excludeId))
+                .ifPresent(other -> {
+                    throw new ConflictException(
+                            "A shift type named '" + name + "' already exists");
+                });
+    }
+
+    private boolean sameTimes(ShiftType shiftType, ShiftTypeRequest request) {
+        return shiftType.getStartTime().equals(request.startTime())
+                && shiftType.getEndTime().equals(request.endTime());
+    }
+
+    private void requireDifferentTimes(ShiftTypeRequest request) {
+        if (request.startTime().equals(request.endTime())) {
+            throw new ValidationException("A shift can't start and end at the same time");
         }
+    }
 
+    // crossesMidnight is derived rather than asked for, so a night shift can't
+    // be stored as if it ran backwards.
+    private void apply(ShiftType shiftType, ShiftTypeRequest request, String name) {
         shiftType.setName(name);
-        shiftType.setStartTime(start);
-        shiftType.setEndTime(end);
-        shiftType.setCrossesMidnight(end.isBefore(start));
+        shiftType.setStartTime(request.startTime());
+        shiftType.setEndTime(request.endTime());
+        shiftType.setCrossesMidnight(request.endTime().isBefore(request.startTime()));
     }
 
     private ShiftType require(Long id) {
         return shiftTypeRepository.findById(id)
+                .filter(ShiftType::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Shift type " + id + " not found"));
     }
 
@@ -104,17 +177,12 @@ public class ShiftTypeService {
                 shiftType.getStartTime(),
                 shiftType.getEndTime(),
                 shiftType.isCrossesMidnight(),
-                durationHours(shiftType)
-        );
+                durationHours(shiftType.getStartTime(), shiftType.getEndTime()));
     }
 
-    private long durationHours(ShiftType shiftType) {
-        Duration duration = Duration.between(shiftType.getStartTime(), shiftType.getEndTime());
+    private long durationHours(LocalTime start, LocalTime end) {
+        Duration duration = Duration.between(start, end);
 
-        if (shiftType.isCrossesMidnight()) {
-            duration = duration.plusHours(24);
-        }
-
-        return duration.toHours();
+        return duration.isNegative() ? duration.plusHours(24).toHours() : duration.toHours();
     }
 }

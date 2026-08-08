@@ -1,8 +1,10 @@
 package com.shiftscheduler.position;
 
 import com.shiftscheduler.domain.JobPosition;
+import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.repository.EmployeeRepository;
 import com.shiftscheduler.repository.JobPositionRepository;
+import com.shiftscheduler.repository.ShiftRequirementRepository;
 import com.shiftscheduler.web.ConflictException;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
@@ -11,21 +13,30 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+// Same versioning as shift types, but simpler: a position is only a name, so
+// there is nothing that could change and leave a published week reading wrong.
+// Renaming applies everywhere and no new version is ever needed.
+//
+// Deleting is the one thing that can be refused. An employee has to hold a
+// position, so anyone still in it needs moving first.
 @Service
 public class JobPositionService {
 
     private final JobPositionRepository jobPositionRepository;
     private final EmployeeRepository employeeRepository;
+    private final ShiftRequirementRepository requirementRepository;
 
     public JobPositionService(JobPositionRepository jobPositionRepository,
-                              EmployeeRepository employeeRepository) {
+                              EmployeeRepository employeeRepository,
+                              ShiftRequirementRepository requirementRepository) {
         this.jobPositionRepository = jobPositionRepository;
         this.employeeRepository = employeeRepository;
+        this.requirementRepository = requirementRepository;
     }
 
     @Transactional(readOnly = true)
     public List<JobPositionResponse> findAll() {
-        return jobPositionRepository.findAll(Sort.by("name")).stream()
+        return jobPositionRepository.findByActiveTrue(Sort.by("name")).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -39,14 +50,20 @@ public class JobPositionService {
     public JobPositionResponse create(JobPositionRequest request) {
         String name = request.name().trim();
 
-        if (jobPositionRepository.existsByNameIgnoreCase(name)) {
-            throw new ConflictException("A job position named '" + name + "' already exists");
-        }
+        requireNameFree(name, null);
 
-        JobPosition position = new JobPosition();
+        // Recreating a position that was removed brings the old row back, so
+        // published weeks that referred to it line up again.
+        JobPosition position = jobPositionRepository
+                .findByNameIgnoreCaseAndActiveFalse(name)
+                .orElseGet(JobPosition::new);
+
         position.setName(name);
+        position.setActive(true);
 
-        return toResponse(jobPositionRepository.save(position));
+        return toResponse(position.getId() == null
+                ? jobPositionRepository.save(position)
+                : position);
     }
 
     @Transactional
@@ -54,10 +71,7 @@ public class JobPositionService {
         JobPosition position = require(id);
         String name = request.name().trim();
 
-        if (jobPositionRepository.existsByNameIgnoreCaseAndIdNot(name, id)) {
-            throw new ConflictException("A job position named '" + name + "' already exists");
-        }
-
+        requireNameFree(name, id);
         position.setName(name);
 
         return toResponse(position);
@@ -67,17 +81,32 @@ public class JobPositionService {
     public void delete(Long id) {
         JobPosition position = require(id);
 
-        if (employeeRepository.existsByJobPositionId(id)) {
-            throw new ConflictException(
-                    "Cannot delete a job position that is assigned to employees");
+        if (employeeRepository.existsByJobPositionIdAndActiveTrue(id)) {
+            throw new ConflictException("Employees are still assigned to this position");
         }
 
-        jobPositionRepository.delete(position);
+        requirementRepository.deleteByJobPositionIdAndShiftScheduleStatusNot(
+                id, ScheduleStatus.PUBLISHED);
+
+        position.setActive(false);
+    }
+
+    // Replaces the unique index that used to be on the name. Removed positions
+    // keep theirs, so uniqueness only holds among the active ones.
+    private void requireNameFree(String name, Long excludeId) {
+        jobPositionRepository.findByNameIgnoreCaseAndActiveTrue(name)
+                .filter(other -> !other.getId().equals(excludeId))
+                .ifPresent(other -> {
+                    throw new ConflictException(
+                            "A job position named '" + name + "' already exists");
+                });
     }
 
     private JobPosition require(Long id) {
         return jobPositionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Job position " + id + " not found"));
+                .filter(JobPosition::isActive)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Job position " + id + " not found"));
     }
 
     private JobPositionResponse toResponse(JobPosition position) {

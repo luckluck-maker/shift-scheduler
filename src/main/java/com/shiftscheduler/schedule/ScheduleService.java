@@ -119,14 +119,14 @@ public class ScheduleService {
     public MyWeekResponse myWeek(Long scheduleId, Long employeeId) {
         Schedule schedule = guard.require(scheduleId);
 
-        // An employee only ever sees their own, whatever they ask for.
+        // An employee only ever sees their own, whatever the request asks for.
         Long target = currentUser.isManager() && employeeId != null
                 ? employeeId
                 : currentUser.employeeId();
 
         Map<Long, ShiftPreference> preferences = preferenceRepository
                 .findByShiftScheduleIdAndEmployeeIdOrderByShiftShiftDateAscIdAsc(
-                        scheduleId, currentUser.employeeId())
+                        scheduleId, target)
                 .stream()
                 .collect(Collectors.toMap(
                         preference -> preference.getShift().getId(), Function.identity()));
@@ -355,7 +355,7 @@ public class ScheduleService {
 
     private static String key(LocalDate weekStart, Shift shift) {
         long dayOffset = ChronoUnit.DAYS.between(weekStart, shift.getShiftDate());
-        return dayOffset + "|" + shift.getShiftType().getId();
+        return dayOffset + "|" + shift.getShiftType().getName();
     }
     private ShiftRequirement newRequirement(Shift shift, JobPosition position,
                                             int count, boolean essential) {
@@ -439,7 +439,7 @@ public class ScheduleService {
     // in the next week without anything special. What gets copied from the
     // week before is the staffing - how many of each position each shift needs.
     private void buildWeek(Schedule schedule) {
-        List<ShiftType> types = shiftTypeRepository.findAll(Sort.by("startTime"));
+        List<ShiftType> types = shiftTypeRepository.findByActiveTrueOrderByStartTimeAsc();
 
         if (types.isEmpty()) {
             throw new ValidationException("No shift types are defined yet");

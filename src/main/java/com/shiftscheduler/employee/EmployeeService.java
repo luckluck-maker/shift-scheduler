@@ -135,6 +135,7 @@ public class EmployeeService {
 
     private JobPosition requirePosition(Long id) {
         return jobPositionRepository.findById(id)
+                .filter(JobPosition::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Job position " + id + " not found"));
     }
 

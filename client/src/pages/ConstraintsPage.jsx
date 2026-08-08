@@ -57,8 +57,38 @@ export default function ConstraintsPage() {
         }
     }, [week, employeeId])
 
-    async function loadWeek() {
-        setSelected(new Set())
+    // Clicking away or pressing Escape drops the selection. However, the grid and the
+    // panel are excluded - pressing inside won't cancel the selection
+    useEffect(() => {
+        if (selected.size === 0) {
+            return
+        }
+
+        function onClickAway(event) {
+            if (!event.target.closest('.grid') && !event.target.closest('.panel')) {
+                setSelected(new Set())
+            }
+        }
+
+        function onKey(event) {
+            if (event.key === 'Escape') {
+                setSelected(new Set())
+            }
+        }
+
+        window.addEventListener('mousedown', onClickAway)
+        window.addEventListener('keydown', onKey)
+
+        return () => {
+            window.removeEventListener('mousedown', onClickAway)
+            window.removeEventListener('keydown', onKey)
+        }
+    }, [selected.size])
+
+    async function loadWeek(keepSelection = false) {
+        if (!keepSelection) {
+            setSelected(new Set())
+        }
 
         try {
             const query = isManager ? `?employeeId=${employeeId}` : ''
@@ -102,7 +132,7 @@ export default function ConstraintsPage() {
                 }
             }
 
-            await loadWeek()
+            await loadWeek(true)
         } catch (err) {
             setError(err.status === 409
                 ? 'תקופת הגשת האילוצים לשבוע זה נסגרה'
@@ -134,7 +164,7 @@ export default function ConstraintsPage() {
                 })
             }
 
-            await loadWeek()
+            await loadWeek(true)
         } catch {
             setError('שמירת הסיבה נכשלה')
         } finally {
@@ -199,7 +229,6 @@ export default function ConstraintsPage() {
                     busy={busy}
                     onType={applyType}
                     onReason={applyReason}
-                    onClear={() => setSelected(new Set())}
                 />
             )}
 
@@ -210,7 +239,7 @@ export default function ConstraintsPage() {
     )
 }
 
-function SelectionPanel({ shifts, busy, onType, onReason, onClear }) {
+function SelectionPanel({ shifts, busy, onType, onReason }) {
     const [reason, setReason] = useState(sharedReason(shifts))
 
     // A new selection brings its own reason, so the field follows it.
@@ -229,9 +258,7 @@ function SelectionPanel({ shifts, busy, onType, onReason, onClear }) {
                         ? describe(shifts[0])
                         : `${shifts.length} משמרות נבחרו`}
                 </strong>
-                <button className="link-button" onClick={onClear}>ביטול בחירה</button>
             </div>
-
             <div className="panel-choices">
                 {TYPES.map((type) => (
                     <button

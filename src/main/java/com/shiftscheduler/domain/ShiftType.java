@@ -29,6 +29,11 @@ public class ShiftType {
     @Column(name = "crosses_midnight", nullable = false)
     private boolean crossesMidnight;
 
+    // Soft delete flag. A type that's been used by a published week can't be
+    // removed outright, so this hides it instead.
+    @Column(nullable = false)
+    private boolean active = true;
+
     public Long getId() {
         return id;
     }
@@ -68,4 +73,13 @@ public class ShiftType {
     public void setCrossesMidnight(boolean crossesMidnight) {
         this.crossesMidnight = crossesMidnight;
     }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
 }

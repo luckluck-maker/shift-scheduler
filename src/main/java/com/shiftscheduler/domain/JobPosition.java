@@ -18,6 +18,11 @@ public class JobPosition {
     @Column(nullable = false, unique = true, length = 60)
     private String name;
 
+    // Soft delete flag, same reasoning as on ShiftType.
+    @Column(nullable = false)
+    private boolean active = true;
+
+
     public Long getId() {
         return id;
     }
@@ -33,4 +38,13 @@ public class JobPosition {
     public void setName(String name) {
         this.name = name;
     }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
 }

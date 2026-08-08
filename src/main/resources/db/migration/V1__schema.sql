@@ -1,10 +1,15 @@
+-- No unique name here. A position that a published week refers to is kept as
+-- it was and a new row takes over, so the same name can appear more than once
+-- with only one of them active. The service enforces that.
 CREATE TABLE job_position
 (
-    id   BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(60) NOT NULL,
-    CONSTRAINT uk_job_position_name UNIQUE (name)
+    id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name   VARCHAR(60) NOT NULL,
+    active BIT(1)      NOT NULL DEFAULT b'1'
 );
 
+-- Same as job_position: old versions stay behind so published weeks keep the
+-- hours they were published with.
 CREATE TABLE shift_type
 (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -12,7 +17,7 @@ CREATE TABLE shift_type
     start_time       TIME        NOT NULL,
     end_time         TIME        NOT NULL,
     crosses_midnight BIT(1)      NOT NULL DEFAULT b'0',
-    CONSTRAINT uk_shift_type_name UNIQUE (name)
+    active           BIT(1)      NOT NULL DEFAULT b'1'
 );
 
 CREATE TABLE employee
