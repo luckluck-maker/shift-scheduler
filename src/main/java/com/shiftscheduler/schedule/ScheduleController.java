@@ -68,4 +68,11 @@ public class ScheduleController {
             @Valid @RequestBody ShiftRequirementsUpdateRequest request) {
         return scheduleService.replaceRequirements(scheduleId, shiftId, request);
     }
+
+    @PutMapping("/{id}/submission-deadline")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ScheduleDetailResponse setDeadline(@PathVariable Long id,
+                                              @Valid @RequestBody DeadlineRequest request) {
+        return scheduleService.setSubmissionDeadline(id, request);
+    }
 }

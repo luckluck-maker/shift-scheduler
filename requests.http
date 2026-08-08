@@ -52,7 +52,7 @@ Content-Type: application/json
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
-{"username": "dana", "password": "password123"}
+{"username": "dana@shiftscheduler.local", "password": "password123"}
 
 ### 2.1 Current user — expect 200, role MANAGER
 GET http://localhost:8080/api/auth/me
@@ -815,3 +815,26 @@ GET http://localhost:8080/api/auth/me
 
 ### 11.3 A protected endpoint — expect 401
 GET http://localhost:8080/api/job-positions
+
+
+### 2.0 Log in as manager — expect 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+###
+GET http://localhost:8080/api/schedules/1
+
+### Set a deadline two minutes from now
+###   Replace the time with something two minutes ahead, in UTC
+PUT http://localhost:8080/api/schedules/1/submission-deadline
+Content-Type: application/json
+
+{"version": 12, "submissionClosesAt": "2026-08-06T09:20:00Z"}
+
+### Check the status now — expect COLLECTING
+GET http://localhost:8080/api/schedules/1
+
+### Wait, then check again — expect DRAFT
+GET http://localhost:8080/api/schedules/1

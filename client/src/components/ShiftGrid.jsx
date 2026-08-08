@@ -5,8 +5,7 @@ const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמיש
 // The week laid out as a table: a row per shift type, a column per day.
 //
 // The rows come from the shifts this week actually has, not from every type
-// ever defined - a week built without a night shift shouldn't show an empty
-// row for it. They're sorted by start time so the day reads top to bottom.
+// ever defined. They're sorted by start time so the day reads top to bottom.
 //
 // What details shows in the cells is up to the calling. The same grid shows:
 // 1. the roster to everyone

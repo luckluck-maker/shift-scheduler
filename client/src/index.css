@@ -411,8 +411,10 @@ label {
 .week-label {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.6rem;
   direction: ltr;
+  width: 22rem;
 }
 
 .week-picker .icon-button {
@@ -608,4 +610,106 @@ label {
 .panel-reason input {
   width: 100%;
   margin-top: 0.3rem;
+}
+
+/* ----- manager's grid cell ----- */
+
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.slot-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  border-radius: 3px;
+}
+
+/* Nobody at all in a position the shift asks for. The whole group is marked,
+   not just one row, because this is a different problem from being short. */
+.slot-group.is-deserted {
+  background: #fbeaea;
+  outline: 1px solid #e8c4c4;
+}
+
+.slot {
+  padding: 0.1rem 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* One place still open. A thin bar rather than a fill, so a shift missing one
+   person doesn't shout as loudly as one missing everybody. */
+.slot-empty {
+  height: 1rem;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+          45deg, #fdf3e3, #fdf3e3 4px, #f7e6c8 4px, #f7e6c8 8px);
+}
+
+.slot-more,
+.slot-extra {
+  color: var(--muted);
+}
+
+.slot-mark {
+  margin-right: 0.3rem;
+  opacity: 0.7;
+}
+
+/* What the shift wants, shown while the week is still collecting - nobody is
+   assigned yet, so there is nothing to be missing. */
+.slot-wanted {
+  color: var(--muted);
+  padding: 0.1rem 0.25rem;
+}
+
+.slot-none {
+  color: var(--border);
+}
+
+/* ----- requirements panel ----- */
+
+.requirement-fields {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.requirement-fields .field {
+  width: 8rem;
+}
+
+.head-actions {
+  display: flex;
+  gap: 0.7rem;
+}
+
+button.secondary {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.warnings {
+  margin: 0;
+  padding: 0.8rem 2rem 0.8rem 0.8rem;
+  background: #fdf3e3;
+  border-radius: var(--radius);
+  color: #8a6116;
+  font-size: 0.9rem;
+}
+
+.warnings li {
+  margin: 0.2rem 0;
 }

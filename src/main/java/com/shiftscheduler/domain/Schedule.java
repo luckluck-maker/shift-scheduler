@@ -35,6 +35,12 @@ public class Schedule {
     @Column(nullable = false)
     private long version;
 
+    // When the submission window shuts on its own. Null means it stays open
+    // until the manager closes it by hand.
+    @Column(name = "submission_closes_at")
+    private Instant submissionClosesAt;
+
+
     public Long getId() {
         return id;
     }
@@ -63,10 +69,19 @@ public class Schedule {
         return version;
     }
 
+    public Instant getSubmissionClosesAt() {
+        return submissionClosesAt;
+    }
+
+    public void setSubmissionClosesAt(Instant submissionClosesAt) {
+        this.submissionClosesAt = submissionClosesAt;
+    }
+
     // @Version triggers only when this entity changes. Assignments and
     // requirements live in other tables, so we touch this field to make
     // Hibernate see a change and raise the version.
     public void touch() {
         this.lastChangedAt = Instant.now();
     }
+
 }

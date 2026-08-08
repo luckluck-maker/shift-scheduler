@@ -5,6 +5,7 @@ public record PositionCoverage(
         String jobPositionName,
         int required,
         int assigned,
-        int missing
+        int missing,
+        boolean essential
 ) {
 }

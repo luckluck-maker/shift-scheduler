@@ -304,7 +304,7 @@ public class AssignmentService {
                     requirement.getJobPosition().getName(),
                     requirement.getRequiredCount(),
                     assigned,
-                    missing));
+                    missing, requirement.isEssential()));
         }
 
         List<AssignmentResponse> assignmentResponses = assignments.stream()
@@ -333,6 +333,7 @@ public class AssignmentService {
                 shift.getShiftType().getName(),
                 employee.getId(),
                 employee.getFullName(),
+                employee.getJobPosition().getId(),
                 employee.getJobPosition().getName(),
                 assignment.isOverride(),
                 shift.getSchedule().getVersion(),

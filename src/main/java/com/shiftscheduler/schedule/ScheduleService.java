@@ -112,6 +112,7 @@ public class ScheduleService {
                 weekEnd(schedule),
                 schedule.getStatus().name(),
                 schedule.getVersion(),
+                schedule.getSubmissionClosesAt(),
                 shiftResponses);
     }
 
@@ -221,6 +222,7 @@ public class ScheduleService {
         Schedule schedule = new Schedule();
         schedule.setWeekStart(weekStart);
         schedule.setStatus(ScheduleStatus.COLLECTING);
+        schedule.setSubmissionClosesAt(request.submissionClosesAt());
         scheduleRepository.save(schedule);
 
         buildWeek(schedule);
@@ -461,6 +463,19 @@ public class ScheduleService {
 
         shiftRepository.saveAll(shifts);
         copyRequirements(schedule, shifts);
+    }
+
+    // Enables updates to the deadline while the week is still collecting
+    @Transactional
+    public ScheduleDetailResponse setSubmissionDeadline(Long id, DeadlineRequest request) {
+        Schedule schedule = guard.require(id);
+        guard.requireStatus(schedule, ScheduleStatus.COLLECTING);
+        guard.requireVersion(schedule, request.version());
+
+        schedule.setSubmissionClosesAt(request.submissionClosesAt());
+        guard.markChanged(schedule);
+
+        return findById(id);
     }
 
 }

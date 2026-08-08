@@ -41,6 +41,7 @@ CREATE TABLE schedule
     id              BIGINT AUTO_INCREMENT PRIMARY KEY,
     week_start      DATE        NOT NULL,
     status          VARCHAR(20) NOT NULL,
+    submission_closes_at  DATETIME(6) NULL,
     last_changed_at DATETIME(6) NOT NULL,
     version         BIGINT      NOT NULL DEFAULT 0,
     CONSTRAINT uk_schedule_week_start UNIQUE (week_start)

@@ -8,6 +8,8 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
+
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
@@ -18,4 +20,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     List<Schedule> findByStatusInOrderByWeekStartDesc(Collection<ScheduleStatus> statuses);
 
     Optional<Schedule> findFirstByWeekStartLessThanOrderByWeekStartDesc(LocalDate weekStart);
+
+    List<Schedule> findByStatusAndSubmissionClosesAtBefore(
+            ScheduleStatus status, Instant cutoff);
 }

@@ -10,6 +10,7 @@ public record AssignmentResponse(
         String shiftTypeName,
         Long employeeId,
         String employeeName,
+        Long jobPositionId,
         String jobPositionName,
         boolean override,
         long scheduleVersion,
