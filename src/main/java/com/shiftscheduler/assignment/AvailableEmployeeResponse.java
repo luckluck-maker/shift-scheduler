@@ -5,8 +5,12 @@ public record AvailableEmployeeResponse(
         String fullName,
         Long jobPositionId,
         String jobPositionName,
-        boolean available,
-        String needsOverrideFor,
-        boolean prefersNot
+
+        // The rule that stops this assignment, or null when nothing does.
+        // Will store an identifier, which will be turned into
+        // message by the frontend method
+
+        String violatedRule
+
 ) {
 }

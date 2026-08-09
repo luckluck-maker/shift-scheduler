@@ -1,10 +1,14 @@
 export class ApiError extends Error {
-    constructor(status, message, code) {
+    constructor(status, message, code, body) {
         super(message)
         this.status = status
 
         // Set only where the server needs the screen to tell two failures apart.
         this.code = code
+
+        // The whole response. Only the assignment rejection uses it.
+        this.body = body
+
     }
 }
 
@@ -30,7 +34,9 @@ async function request(method, path, body) {
     const payload = text ? JSON.parse(text) : null
 
     if (!response.ok) {
-        throw new ApiError(response.status, payload?.message ?? 'Request failed', payload?.code)
+        throw new ApiError(response.status, payload?.message ?? 'Request failed',
+            payload?.code, payload)
+
     }
 
     return payload

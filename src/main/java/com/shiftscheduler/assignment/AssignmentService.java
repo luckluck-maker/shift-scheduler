@@ -3,11 +3,9 @@ package com.shiftscheduler.assignment;
 import com.shiftscheduler.domain.Assignment;
 import com.shiftscheduler.domain.Employee;
 import com.shiftscheduler.domain.JobPosition;
-import com.shiftscheduler.domain.PreferenceType;
 import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.domain.Shift;
-import com.shiftscheduler.domain.ShiftPreference;
 import com.shiftscheduler.domain.ShiftRequirement;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.EmployeeLeaveRepository;
@@ -28,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class AssignmentService {
@@ -216,47 +215,48 @@ public class AssignmentService {
                 .map(assignment -> assignment.getEmployee().getId())
                 .collect(Collectors.toSet());
 
-        Set<Long> onLeave = leaveRepository.findByLeaveDate(shift.getShiftDate()).stream()
-                .map(leave -> leave.getEmployee().getId())
-                .collect(Collectors.toSet());
-
-        Map<Long, PreferenceType> preferences = preferenceRepository
-                .findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(shift.getSchedule().getId()).stream()
-                .filter(preference -> preference.getShift().getId().equals(shiftId))
-                .collect(Collectors.toMap(
-                        preference -> preference.getEmployee().getId(), ShiftPreference::getType));
-
         return employeeRepository.findAll(Sort.by("fullName")).stream()
                 .filter(Employee::isActive)
                 .filter(employee -> !alreadyAssigned.contains(employee.getId()))
                 .filter(employee -> jobPositionId == null
                         || employee.getJobPosition().getId().equals(jobPositionId))
-                .map(employee -> toAvailable(employee, onLeave, preferences))
+                .map(employee -> toAvailable(employee, shift))
                 .toList();
     }
 
-    private AvailableEmployeeResponse toAvailable(Employee employee,
-                                                  Set<Long> onLeave,
-                                                  Map<Long, PreferenceType> preferences) {
-        PreferenceType preference = preferences.get(employee.getId());
+    // Runs the same checks the assignment itself will, so the list already
+    // knows who can't be picked and why. Doing it per employee means a few
+    // queries each, with a large roster this would be worth batching.
+    private AvailableEmployeeResponse toAvailable(Employee employee, Shift shift) {
         JobPosition position = employee.getJobPosition();
-
-        String needsOverrideFor = null;
-
-        if (onLeave.contains(employee.getId())) {
-            needsOverrideFor = "On leave";
-        } else if (preference == PreferenceType.CANNOT) {
-            needsOverrideFor = "Marked as unavailable";
-        }
 
         return new AvailableEmployeeResponse(
                 employee.getId(),
                 employee.getFullName(),
                 position.getId(),
                 position.getName(),
-                needsOverrideFor == null,
-                needsOverrideFor,
-                preference == PreferenceType.PREFERS_NOT);
+                worstRule(rules.check(employee, shift)));
+    }
+
+    // Blocking first, then anything overridable, then a preference. Only the
+    // worst one matters.
+    private String worstRule(List<RuleViolation> violations) {
+        return Stream.of(RuleViolation.BLOCKING,
+                        RuleViolation.OVERRIDABLE,
+                        RuleViolation.WARNING)
+                .flatMap(severity -> violations.stream()
+                        .filter(violation -> severity.equals(violation.severity())))
+                .map(RuleViolation::rule)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String firstMessage(List<RuleViolation> violations, String severity) {
+        return violations.stream()
+                .filter(violation -> severity.equals(violation.severity()))
+                .map(RuleViolation::message)
+                .findFirst()
+                .orElse(null);
     }
 
     private boolean fitsRequirement(Shift shift, Employee employee) {

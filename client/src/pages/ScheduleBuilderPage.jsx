@@ -5,6 +5,7 @@ import WeekPicker from '../components/WeekPicker'
 import ShiftCell from '../components/ShiftCell'
 import Field from '../components/Field'
 import PublishDialog from '../components/PublishDialog'
+import AssignmentPanel from '../components/AssignmentPanel'
 
 const STATUS_LABELS = {
     COLLECTING: 'פתוח להגשת אילוצים',
@@ -119,9 +120,10 @@ export default function ScheduleBuilderPage() {
 
         try {
             const body = Object.entries(counts)
-                .map(([jobPositionId, requiredCount]) => ({
+                .map(([jobPositionId, value]) => ({
                     jobPositionId: Number(jobPositionId),
-                    requiredCount: Number(requiredCount) || 0,
+                    requiredCount: Number(value.count) || 0,
+                    essential: value.essential,
                 }))
 
             let version = detail.version
@@ -176,6 +178,10 @@ export default function ScheduleBuilderPage() {
     const byShiftId = new Map(coverage.map((entry) => [entry.shiftId, entry]))
     const collecting = detail?.status === 'COLLECTING'
 
+    const selectedShifts = detail
+        ? detail.shifts.filter((shift) => selected.has(shift.id))
+        : []
+
     return (
         <>
             <div className="page-head">
@@ -201,7 +207,7 @@ export default function ScheduleBuilderPage() {
             ) : (
                 <>
                     <WeekPicker weeks={weeks} current={week} onChange={setWeek}>
-                        <span className="tag-soft">{STATUS_LABELS[detail?.status] ?? ''}</span>
+                        <span className="week-status">{STATUS_LABELS[detail?.status] ?? ''}</span>
                     </WeekPicker>
 
                     {error && <p className="error">{error}</p>}
@@ -219,13 +225,35 @@ export default function ScheduleBuilderPage() {
                     )}
 
                     {selected.size > 0 && (
-                        <RequirementsPanel
-                            shifts={detail.shifts.filter((shift) => selected.has(shift.id))}
-                            positions={positions}
-                            busy={busy}
-                            onApply={applyRequirements}
-                        />
+                        <div className="panel">
+                            <div className="panel-head">
+                                <strong>
+                                    {selected.size === 1
+                                        ? describe(selectedShifts[0])
+                                        : `${selected.size} משמרות נבחרו`}
+                                </strong>
+                            </div>
+
+                            {selected.size === 1 && detail.status !== 'COLLECTING' && (
+                                <AssignmentPanel
+                                    shift={selectedShifts[0]}
+                                    coverage={byShiftId.get(selectedShifts[0].id)}
+                                    onChanged={() => loadWeek(true)}
+                                    onError={setError}
+                                />
+                            )}
+
+                            {detail.status !== 'PUBLISHED' && (
+                                <RequirementFields
+                                    shifts={selectedShifts}
+                                    positions={positions}
+                                    busy={busy}
+                                    onApply={applyRequirements}
+                                />
+                            )}
+                        </div>
                     )}
+
 
                     {selected.size === 0 && detail?.status !== 'PUBLISHED' && (
                         <p className="hint">בחר משמרת או גרור על כמה כדי לקבוע דרישות איוש.</p>
@@ -246,53 +274,75 @@ export default function ScheduleBuilderPage() {
         </>
     )
 }
+// Each position carries a count and whether the shift can run without it.
+function RequirementFields({ shifts, positions, busy, onApply }) {
+    const [values, setValues] = useState({})
 
-function RequirementsPanel({ shifts, positions, busy, onApply }) {
-    const [counts, setCounts] = useState({})
-
-    // A new selection brings its own numbers. Where the selected shifts disagree
+    // A new selection brings its own numbers. Where the selected shifts differ
     // the field is left blank rather than showing one of them.
     useEffect(() => {
         const next = {}
 
         for (const position of positions) {
-            const values = shifts.map((shift) => requiredFor(shift, position.id))
-            const first = values[0]
+            const found = shifts.map((shift) => requirementFor(shift, position.id))
 
-            next[position.id] = values.every((value) => value === first) ? first : ''
+            const counts = found.map((requirement) => requirement.count)
+            const flags = found.map((requirement) => requirement.essential)
+
+            next[position.id] = {
+                count: counts.every((count) => count === counts[0]) ? counts[0] : '',
+                essential: flags.every((flag) => flag === flags[0]) ? flags[0] : true,
+            }
         }
 
-        setCounts(next)
+        setValues(next)
     }, [shifts.map((shift) => shift.id).join(), positions])
 
+    function set(positionId, changes) {
+        setValues((current) => ({
+            ...current,
+            [positionId]: { ...current[positionId], ...changes },
+        }))
+    }
+
     return (
-        <div className="panel">
-            <div className="panel-head">
-                <strong>
-                    {shifts.length === 1
-                        ? describe(shifts[0])
-                        : `${shifts.length} משמרות נבחרו`}
-                </strong>
-            </div>
+        <div className="requirements">
+            <span className="field-label">דרישות איוש</span>
 
             <div className="requirement-fields">
                 {positions.map((position) => (
-                    <Field key={position.id} label={position.name}>
-                        <input
-                            type="number"
-                            min={0}
-                            max={50}
-                            value={counts[position.id] ?? ''}
-                            disabled={busy}
-                            onChange={(e) =>
-                                setCounts((current) => ({ ...current, [position.id]: e.target.value }))}
-                        />
-                    </Field>
+                    <div key={position.id} className="requirement-field">
+                        <Field label={position.name}>
+                            <input
+                                type="number"
+                                min={0}
+                                max={50}
+                                value={values[position.id]?.count ?? ''}
+                                disabled={busy}
+                                onChange={(e) => set(position.id, { count: e.target.value })}
+                            />
+                        </Field>
+
+                        <label className="checkbox">
+                            <input
+                                type="checkbox"
+                                checked={values[position.id]?.essential ?? true}
+                                disabled={busy || !Number(values[position.id]?.count)}
+                                onChange={(e) => set(position.id, { essential: e.target.checked })}
+                            />
+                            חיוני
+                        </label>
+                    </div>
                 ))}
             </div>
 
+            <p className="hint hint-quiet">
+                * תפקיד חיוני שנשאר ללא איוש כלל מסומן באדום, והמנוע יעדיף לאייש אותו
+                על פני תפקיד שאינו חיוני.
+            </p>
+
             <div className="form-actions">
-                <button onClick={() => onApply(counts)} disabled={busy}>
+                <button onClick={() => onApply(values)} disabled={busy}>
                     {busy ? 'שומר…' : 'שמירת דרישות'}
                 </button>
             </div>
@@ -312,11 +362,13 @@ function toGridShift(shift) {
     }
 }
 
-function requiredFor(shift, jobPositionId) {
+function requirementFor(shift, jobPositionId) {
     const found = shift.requirements.find(
         (requirement) => requirement.jobPositionId === jobPositionId)
 
-    return found ? String(found.requiredCount) : '0'
+    return found
+        ? { count: String(found.requiredCount), essential: found.essential }
+        : { count: '0', essential: true }
 }
 
 function describe(shift) {

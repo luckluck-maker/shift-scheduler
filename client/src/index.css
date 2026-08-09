@@ -400,11 +400,16 @@ label {
 
 /* ----- week picker ----- */
 
+.week-status {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
 .week-picker {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
+  gap: 0.8rem;
   margin-bottom: 1.2rem;
 }
 
@@ -414,7 +419,7 @@ label {
   justify-content: center;
   gap: 0.6rem;
   direction: ltr;
-  width: 22rem;
+  width: 18rem;
 }
 
 .week-picker .icon-button {
@@ -628,18 +633,33 @@ label {
   border-radius: 3px;
 }
 
-/* Nobody at all in a position the shift asks for. The whole group is marked,
-   not just one row, because this is a different problem from being short. */
+.slot-group + .slot-group .slot-position {
+  padding-top: 0.35rem;
+}
+
+.slot-position {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: #9aa3ac;
+  padding: 0.1rem 0.25rem 0;
+}
+
+.slot-count {
+  direction: ltr;
+}
+
 .slot-group.is-deserted {
-  background: #fbeaea;
-  outline: 1px solid #e8c4c4;
+}
+
+.slot-group.is-deserted .slot-empty {
+  background: repeating-linear-gradient(
+          45deg, #fdeaea, #fdeaea 4px, #f7c8c8 4px, #f7c8c8 8px);
 }
 
 .slot {
-  padding: 0.1rem 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: #e8f3ec;
+  border-radius: 3px;
 }
 
 /* One place still open. A thin bar rather than a fill, so a shift missing one
@@ -651,10 +671,16 @@ label {
           45deg, #fdf3e3, #fdf3e3 4px, #f7e6c8 4px, #f7e6c8 8px);
 }
 
+/* gaps and the counts. */
 .slot-more,
+.slot-extra {
+  background: none;
+}
+
 .slot-extra {
   color: var(--muted);
 }
+
 
 .slot-mark {
   margin-right: 0.3rem;
@@ -676,12 +702,29 @@ label {
 
 .requirement-fields {
   display: flex;
-  gap: 1rem;
+  gap: 1.2rem;
   flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 0.9rem;
 }
 
-.requirement-fields .field {
+.requirement-field {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.requirement-field .field {
   width: 8rem;
+}
+
+.requirement-field .checkbox {
+  font-size: 0.82rem;
+  padding-bottom: 0.5rem;
+}
+
+.requirement-field .checkbox input:disabled + * {
+  opacity: 0.5;
 }
 
 .head-actions {
@@ -712,4 +755,79 @@ button.secondary {
 
 .warnings li {
   margin: 0.2rem 0;
+}
+
+/* ----- assignment panel ----- */
+
+.assigned {
+  margin-bottom: 1rem;
+}
+
+.assigned-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.assigned-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.assigned-list li:last-child {
+  border-bottom: none;
+}
+
+.assign-row {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin-bottom: 1.2rem;
+}
+
+.assign-row select {
+  flex: 1;
+  max-width: 20rem;
+}
+
+.requirements {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.requirements > .field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.consequence {
+  display: block;
+  font-size: 0.82rem;
+  opacity: 0.85;
+  margin-top: 0.15rem;
+}
+
+/* Assigned before the requirement was lowered - not an override, just no
+   longer needed */
+.slot-spare {
+  color: var(--muted);
+}
+
+.hint-quiet {
+  color: #9aa3ac;
+  font-size: 0.78rem;
+}
+
+/* Removing somebody is an ordinary action, not a warning - it only turns red
+   under the cursor, when it's about to happen. */
+.icon-remove {
+  padding: 0;
+  background: none;
+  color: var(--danger);
+  font-size: 1.2rem;
+  line-height: 1;
 }
