@@ -72,25 +72,26 @@ function PositionSlots({ position, people, showLabel }) {
 
     return (
         <div className={deserted ? 'slot-group is-deserted' : 'slot-group'}>
-            {showLabel && (
-                <div className="slot-position">
-                    <span>{position.jobPositionName}</span>
-                    <span className="slot-count">{people.length}/{position.required}</span>
-                </div>
-            )}
-            {shown.map((person, index) => (
-                <div key={person.id}
-                     className={index >= needed ? 'slot slot-extra' : 'slot'}>
-                    {person.employeeName}
-                    {index >= needed && <span className="slot-mark">+</span>}
-                </div>
-            ))}
+            <div className="slot-position">
+                <span>{position.jobPositionName}</span>
+                <span className="slot-count">{people.length}/{position.required}</span>
+            </div>
 
-            {hidden > 0 && <div className="slot slot-more">+{hidden}</div>}
+            <div className="slot-rows">
+                {shown.map((person, index) => (
+                    <div key={person.id}
+                         className={index >= needed ? 'slot slot-extra' : 'slot'}>
+                        {person.employeeName}
+                        {index >= needed && <span className="slot-mark">+</span>}
+                    </div>
+                ))}
 
-            {Array.from({ length: empty }, (unused, index) => (
-                <div key={index} className="slot slot-empty" />
-            ))}
+                {hidden > 0 && <div className="slot slot-more">+{hidden}</div>}
+
+                {Array.from({ length: empty }, (unused, index) => (
+                    <div key={index} className="slot slot-empty" />
+                ))}
+            </div>
         </div>
     )
 }

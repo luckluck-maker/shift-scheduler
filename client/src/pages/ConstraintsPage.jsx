@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import ShiftGrid from '../components/ShiftGrid'
@@ -15,6 +15,10 @@ const LABELS = {
     CANNOT: 'לא יכול',
 }
 
+// The picker's value when the manager is looking at everyone rather than one
+// person's week.
+const ALL = 'all'
+
 // An employee sees their own week; a manager picks whose week to look at, which
 // is how constraints get corrected once the submission window has closed.
 export default function ConstraintsPage() {
@@ -23,7 +27,9 @@ export default function ConstraintsPage() {
     const [weeks, setWeeks] = useState([])
     const [week, setWeek] = useState(null)
     const [employees, setEmployees] = useState([])
-    const [employeeId, setEmployeeId] = useState(user.employeeId)
+
+    const [employeeId, setEmployeeId] = useState(isManager ? ALL : user.employeeId)
+    const [allPreferences, setAllPreferences] = useState([])
 
     const [myWeek, setMyWeek] = useState(null)
     const [selected, setSelected] = useState(new Set())
@@ -91,8 +97,20 @@ export default function ConstraintsPage() {
         }
 
         try {
-            const query = isManager ? `?employeeId=${employeeId}` : ''
-            setMyWeek(await api.get(`/api/schedules/${week.id}/my-week${query}`))
+            // The overview needs the whole week's constraints rather than one
+            // person's, so it asks for them separately.
+            const query = isManager && employeeId !== ALL ? `?employeeId=${employeeId}` : ''
+
+            const calls = [api.get(`/api/schedules/${week.id}/my-week${query}`)]
+
+            if (employeeId === ALL) {
+                calls.push(api.get(`/api/shift-preferences?scheduleId=${week.id}`))
+            }
+
+            const [weekData, preferences] = await Promise.all(calls)
+
+            setMyWeek(weekData)
+            setAllPreferences(preferences ?? [])
             setError(null)
         } catch {
             setError('לא הצלחנו לטעון את המשמרות')
@@ -143,8 +161,8 @@ export default function ConstraintsPage() {
     }
 
     // Saved when the field loses focus, so there's no button to press.
-    async function applyReason(reason) {
-        const withPreference = selectedShifts.filter((shift) => shift.preferenceId)
+    async function applyReason(reason, shifts) {
+        const withPreference = shifts.filter((shift) => shift.preferenceId)
 
         if (withPreference.length === 0) {
             return
@@ -180,17 +198,34 @@ export default function ConstraintsPage() {
         return <p className="notice">אין עדיין שבועות במערכת.</p>
     }
 
-    const canEdit = myWeek?.submissionOpen || isManager
+    const overview = employeeId === ALL
+
+    // Disables edit in the all view constaints.
+    // if changes are required, manager can select the specific employee
+    // and make the changes over there
+    const canEdit = !overview && (myWeek?.submissionOpen || isManager)
+
+    const byShift = new Map()
+
+    for (const preference of allPreferences) {
+        const list = byShift.get(preference.shiftId) ?? []
+        list.push(preference)
+        byShift.set(preference.shiftId, list)
+    }
 
     return (
         <>
             <div className="page-head">
                 <h1>אילוצים</h1>
-
                 {isManager && (
-                    <select value={employeeId} onChange={(e) => setEmployeeId(Number(e.target.value))}>
+                    <select value={employeeId}
+                            onChange={(e) => setEmployeeId(
+                                e.target.value === ALL ? ALL : Number(e.target.value))}>
+                        <option value={ALL}>כל העובדים</option>
                         {employees.map((employee) => (
-                            <option key={employee.id} value={employee.id}>{employee.fullName}</option>
+                            <option key={employee.id} value={employee.id}>
+                                {employee.fullName}
+                            </option>
                         ))}
                     </select>
                 )}
@@ -213,12 +248,19 @@ export default function ConstraintsPage() {
                     selected={selected}
                     onSelectionChange={canEdit ? setSelected : undefined}
                     renderCell={(shift) => (
-                        <div className={`pref pref-${shift.preferenceType ?? 'none'}`}>
-                            <span>{LABELS[shift.preferenceType] ?? 'יכול'}</span>
-                            {shift.preferenceReason && (
-                                <span className="pref-reason">{shift.preferenceReason}</span>
-                            )}
-                        </div>
+                        overview
+                            ? <ShiftConstraints
+                                preferences={byShift.get(shift.shiftId) ?? []} />
+                            : (
+                                <div className={`pref pref-${shift.preferenceType ?? 'none'}`}>
+                                    <span>{LABELS[shift.preferenceType] ?? 'יכול'}</span>
+                                    {shift.preferenceReason && (
+                                        <span className="pref-reason" title={shift.preferenceReason}>
+                                             {shift.preferenceReason}
+                                    </span>
+                                    )}
+                                </div>
+                            )
                     )}
                 />
             )}
@@ -232,8 +274,15 @@ export default function ConstraintsPage() {
                 />
             )}
 
+            {overview && (
+                <p className="hint">
+                    מוצגים האילוצים שהוגשו לשבוע זה. לעריכה יש לבחור עובד.
+                </p>
+            )}
             {canEdit && selected.size === 0 && (
-                <p className="hint">בחר משמרת או גרור על כמה כדי לקבוע אילוץ.</p>
+                <p className="hint">
+                    בחר משמרת או גרור על כמה כדי לקבוע אילוץ.
+                </p>
             )}
         </>
     )
@@ -241,6 +290,27 @@ export default function ConstraintsPage() {
 
 function SelectionPanel({ shifts, busy, onType, onReason }) {
     const [reason, setReason] = useState(sharedReason(shifts))
+
+
+    const reasonRef = useRef(reason)
+    const shiftsRef = useRef(shifts)
+
+    useEffect(() => {
+        reasonRef.current = reason
+        shiftsRef.current = shifts
+    }, [reason, shifts])
+
+    useEffect(() => {
+        return () => {
+            const current = reasonRef.current
+            const target = shiftsRef.current
+
+            if (current !== sharedReason(target)) {
+                onReason(current.trim(), target)
+            }
+        }
+    }, [])
+
 
     // A new selection brings its own reason, so the field follows it.
     useEffect(() => {
@@ -278,9 +348,9 @@ function SelectionPanel({ shifts, busy, onType, onReason }) {
                     <input
                         value={reason}
                         disabled={busy}
+                        maxLength={255}
                         placeholder="רשות"
                         onChange={(e) => setReason(e.target.value)}
-                        onBlur={() => onReason(reason.trim())}
                     />
                 </label>
             )}
@@ -306,4 +376,30 @@ function sharedReason(shifts) {
     const first = shifts[0]?.preferenceReason ?? ''
 
     return shifts.every((shift) => (shift.preferenceReason ?? '') === first) ? first : ''
+}
+
+// Shows the constraints entered by all employees of thw week.
+// Reasoning is that manager should have an all out view for the constaints
+// and their reasoning to make sure nothing stands out and he is allowed to continue
+// with building the schedule
+function ShiftConstraints({ preferences }) {
+    if (preferences.length === 0) {
+        return null
+    }
+
+    return (
+        <div className="constraint-list">
+            {preferences.map((preference) => (
+                <div key={preference.id}
+                     className={`constraint constraint-${preference.type}`}>
+                    <span className="constraint-name">{preference.employeeName}</span>
+                    {preference.reason && (
+                        <span className="constraint-reason" title={preference.reason}>
+                                {preference.reason}
+                        </span>
+                    )}
+                </div>
+            ))}
+        </div>
+    )
 }

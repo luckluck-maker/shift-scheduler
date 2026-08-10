@@ -37,8 +37,8 @@ export default function App() {
     </BrowserRouter>)
 }
 
-// Managers and employees start in different places, so the root just forwards.
+// Default pages for manager and employee
 function Home() {
-    const {isManager} = useAuth()
-    return <Navigate to={isManager ? '/employees' : '/my-schedule'} replace/>
+    const { isManager } = useAuth()
+    return <Navigate to={isManager ? '/schedule' : '/my-schedule'} replace />
 }

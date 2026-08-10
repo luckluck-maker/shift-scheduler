@@ -33,7 +33,10 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> findAll() {
-        return employeeRepository.findAll(Sort.by("fullName")).stream()
+        // Active first, then by name.
+        return employeeRepository.findAll(
+                        Sort.by(Sort.Order.desc("active"), Sort.Order.asc("fullName")))
+                .stream()
                 .map(this::toResponse)
                 .toList();
     }

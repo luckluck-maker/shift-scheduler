@@ -8,7 +8,8 @@ export default function Layout() {
 
     const links = isManager
         ? [
-            { to: '/schedule', label: 'בניית סידור' },,
+            { to: '/my-schedule', label: 'הסידור' },
+            { to: '/schedule', label: 'בניית סידור' },
             { to: '/employees', label: 'עובדים' },
             { to: '/constraints', label: 'אילוצים' },
             { to: '/leaves', label: 'היעדרויות' },

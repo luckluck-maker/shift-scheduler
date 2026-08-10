@@ -93,8 +93,8 @@ export default function EmployeesPage() {
                         <td>{employee.jobPositionName}</td>
                         <td>{employee.maxWeeklyHours}</td>
                         <td>
-                            {employee.role === 'MANAGER' && <span className="tag">מנהל</span>}
                             {employee.active ? 'פעיל' : 'מושבת'}
+                            {employee.role === 'MANAGER' && <span className="tag">מנהל</span>}
                         </td>
                         <td className="row-actions">
                             <button className="link-button" onClick={() => setEditing(employee)}>

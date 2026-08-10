@@ -167,7 +167,7 @@ body {
   font-size: 0.72rem;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
-  margin-left: 0.4rem;
+  margin-right: 0.4rem;
 }
 
 /* ----- forms ----- */
@@ -490,7 +490,7 @@ label {
   border-bottom: 1px solid var(--border);
   border-left: 1px solid var(--border);
   padding: 0.4rem;
-  vertical-align: top;
+  vertical-align: middle;
   height: 4rem;
   font-size: 0.85rem;
 }
@@ -500,7 +500,7 @@ label {
   border-bottom: none;
 }
 
-.grid-cell:first-of-type {
+.grid-cell:last-of-type {
   border-left: none;
 }
 
@@ -547,11 +547,14 @@ label {
 /* ----- constraint cells ----- */
 
 .pref {
-  padding: 0.3rem 0.2rem;
-  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 2.5rem;
+  padding: 0.3rem;
   border-radius: 4px;
-  color: var(--muted);
-  text-align: center;
+  flex-direction: column;
 }
 
 .pref-PREFERS_NOT {
@@ -569,6 +572,55 @@ label {
   font-size: 0.7rem;
   opacity: 0.8;
   margin-top: 0.15rem;
+}
+
+/* ----- constraints overview ----- */
+
+.constraint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.constraint {
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+}
+
+.constraint-CANNOT {
+  background: #fbeaea;
+  color: var(--danger);
+}
+
+
+.constraint-PREFERS_NOT {
+  background: #fdf3e3;
+  color: #8a6116;
+}
+
+.constraint-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.constraint-reason {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+/* Long reasons would stretch the row - two lines is enough to recognise one,
+   and hovering shows the rest. */
+.constraint-reason,
+.pref-reason {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 0.7rem;
+  opacity: 0.8;
 }
 
 /* ----- selection panel ----- */
@@ -627,14 +679,11 @@ label {
 }
 
 .slot-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
   border-radius: 3px;
 }
 
-.slot-group + .slot-group .slot-position {
-  padding-top: 0.35rem;
+.slot-group + .slot-group {
+  margin-top: 0.1rem;
 }
 
 .slot-position {
@@ -642,14 +691,11 @@ label {
   justify-content: space-between;
   font-size: 0.65rem;
   color: #9aa3ac;
-  padding: 0.1rem 0.25rem 0;
+  padding: 0.1rem 0.25rem 0.1rem;
 }
 
 .slot-count {
   direction: ltr;
-}
-
-.slot-group.is-deserted {
 }
 
 .slot-group.is-deserted .slot-empty {
@@ -658,6 +704,21 @@ label {
 }
 
 .slot {
+  padding: 0.1rem 0.25rem;
+  background: none;
+}
+
+/* The background belongs to the position as a whole, not to each name in it.
+   The label sits outside. */
+.slot-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: none;
+}
+
+.slot {
+  padding: 0.1rem 0.25rem;
   background: #e8f3ec;
   border-radius: 3px;
 }
@@ -809,12 +870,6 @@ button.secondary {
   font-size: 0.82rem;
   opacity: 0.85;
   margin-top: 0.15rem;
-}
-
-/* Assigned before the requirement was lowered - not an override, just no
-   longer needed */
-.slot-spare {
-  color: var(--muted);
 }
 
 .hint-quiet {
