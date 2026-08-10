@@ -13,8 +13,10 @@ export default function MySchedulePage() {
     useEffect(() => {
         api.get('/api/schedules')
             .then((list) => {
+                // starts by default on the latest published schedule
+                const published = list.filter((week) => week.status === 'PUBLISHED')
                 setWeeks(list)
-                setWeek(list[0] ?? null)
+                setWeek(published[0] ?? list[0] ?? null)
             })
             .catch(() => setError('לא הצלחנו לטעון את רשימת השבועות'))
             .finally(() => setLoading(false))
@@ -57,16 +59,18 @@ export default function MySchedulePage() {
                     shifts={roster.shifts}
                     weekStart={roster.weekStart}
                     renderCell={(shift) => (
-                        <div className={shift.assignedToMe ? 'cell-mine' : ''}>
-                            {shift.assignments.length === 0 && <span className="cell-empty">—</span>}
-
-                            {shift.assignments.map((person) => (
-                                <div key={person.employeeId}
-                                     className={person.isMe ? 'person person-me' : 'person'}>
-                                    {person.fullName}
-                                </div>
-                            ))}
-                        </div>
+                        shift.assignments.length === 0 ? (
+                            <div className="cell-off" />
+                        ) : (
+                            <div className={shift.assignedToMe ? 'cell-mine' : ''}>
+                                {shift.assignments.map((person) => (
+                                    <div key={person.employeeId}
+                                         className={person.isMe ? 'person person-me' : 'person'}>
+                                        {person.fullName}
+                                    </div>
+                                ))}
+                            </div>
+                        )
                     )}
                 />
             )}
