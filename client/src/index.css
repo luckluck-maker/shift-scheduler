@@ -831,3 +831,34 @@ button.secondary {
   font-size: 1.2rem;
   line-height: 1;
 }
+
+.week-row {
+  position: relative;
+  margin-bottom: 0.8rem;
+}
+
+.solve-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #7d6ba3;
+}
+
+.solve-result {
+  margin: 0 0 0.8rem;
+  padding: 0.5rem 0.8rem;
+  background: #f0f4ee;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  color: #4a5a3e;
+}
+
+.solve-result.has-gaps {
+  background: #fdf3e3;
+  color: #8a6116;
+}
+
+.solve-result.is-deserted {
+  background: #fbeaea;
+  color: var(--danger);
+}

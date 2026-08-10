@@ -26,6 +26,9 @@ export default function ScheduleBuilderPage() {
     const [busy, setBusy] = useState(false)
     const [publishing, setPublishing] = useState(false)
 
+    const [solving, setSolving] = useState(false)
+    const [solveResult, setSolveResult] = useState(null)
+
     useEffect(() => {
         Promise.all([api.get('/api/schedules'), api.get('/api/job-positions')])
             .then(([weekList, positionList]) => {
@@ -39,7 +42,7 @@ export default function ScheduleBuilderPage() {
 
     useEffect(() => {
         if (week) {
-            loadWeek()
+            void loadWeek()
         }
     }, [week])
 
@@ -47,6 +50,8 @@ export default function ScheduleBuilderPage() {
         if (!keepSelection) {
             setSelected(new Set())
         }
+
+        setSolveResult(null)
 
         try {
             const [detailData, coverageData] = await Promise.all([
@@ -156,6 +161,51 @@ export default function ScheduleBuilderPage() {
             { version: detail.version }))
     }
 
+    // The request comes back immediately and the solver carries on in the
+    // background, so the screen asks every second whether it's finished. Since timefold
+    // can backtrack and unassign employees, not showing assignment progress.
+    // Instead, shows loading / working to show that the solver is currently working.
+    async function solve() {
+        setSolving(true)
+        setSolveResult(null)
+        setError(null)
+
+        try {
+            await api.post(`/api/schedules/${week.id}/solve`)
+            await waitForSolver()
+
+            const fresh = await api.get(`/api/schedules/${week.id}/coverage`)
+
+            setCoverage(fresh)
+            setDetail(await api.get(`/api/schedules/${week.id}`))
+            setSolveResult(summarise(fresh))
+        } catch (err) {
+            setError(messageFor(err))
+        } finally {
+            setSolving(false)
+        }
+    }
+
+    // NOT_SOLVING comes back both before the solver has picked the job up and
+    // after it's done, so the first check waits a moment. Without that the
+    // screen would decide it had finished before it started.
+    async function waitForSolver() {
+        await pause(700)
+
+        for (let attempt = 0; attempt < 120; attempt++) {
+            const status = await api.get(`/api/schedules/${week.id}/solve-status`)
+
+            if (!status.solving) {
+                return
+            }
+
+            await pause(1000)
+        }
+
+        throw new Error('Solver did not finish in time')
+    }
+
+
     async function act(call) {
         setBusy(true)
 
@@ -206,9 +256,32 @@ export default function ScheduleBuilderPage() {
                 <p className="notice">אין עדיין שבועות. התחל בלחיצה על "שבוע חדש".</p>
             ) : (
                 <>
-                    <WeekPicker weeks={weeks} current={week} onChange={setWeek}>
-                        <span className="week-status">{STATUS_LABELS[detail?.status] ?? ''}</span>
-                    </WeekPicker>
+                    <div className="week-row">
+                        <WeekPicker weeks={weeks} current={week} onChange={setWeek}>
+                            <span className="week-status">{STATUS_LABELS[detail?.status] ?? ''}</span>
+                        </WeekPicker>
+
+                        {detail?.status === 'DRAFT' && (
+                            <button className="solve-button" disabled={solving || busy}
+                                    onClick={solve}>
+                                {solving ? 'בונה סידור…' : 'בנייה אוטומטית'}
+                            </button>
+                        )}
+                    </div>
+
+                    {solveResult && (
+                        <p className={`solve-result ${severity(solveResult)}`}>
+                            הסידור נבנה · {solveResult.filled} שיבוצים
+
+                            {solveResult.missing === 0 && ' · כל המשמרות מאוישות'}
+
+                            {solveResult.missing > 0
+                                && ` · ${solveResult.missing} מקומות נותרו חסרים`}
+
+                            {solveResult.deserted > 0
+                                && ` · ${solveResult.deserted} תפקידים ללא איוש כלל`}
+                        </p>
+                    )}
 
                     {error && <p className="error">{error}</p>}
 
@@ -398,4 +471,36 @@ function messageFor(error) {
     }
 
     return 'הפעולה נכשלה'
+}
+
+function pause(millis) {
+    return new Promise((resolve) => setTimeout(resolve, millis))
+}
+
+// Summary of the solver work - assigns and unassigned.
+function summarise(coverage) {
+    let filled = 0
+    let missing = 0
+    let deserted = 0
+
+    for (const shift of coverage) {
+        for (const position of shift.positions) {
+            filled += position.assigned
+            missing += position.missing
+
+            if (position.essential && position.required > 0 && position.assigned === 0) {
+                deserted++
+            }
+        }
+    }
+
+    return { filled, missing, deserted }
+}
+
+function severity(result) {
+    if (result.deserted > 0) {
+        return 'is-deserted'
+    }
+
+    return result.missing > 0 ? 'has-gaps' : ''
 }
