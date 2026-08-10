@@ -23,7 +23,7 @@ export default function Layout() {
     return (
         <div className="app">
             <header className="topbar">
-                <span className="brand">סידור משמרות</span>
+                <span className="brand">מסדרים ת'סידור</span>
 
                 <nav className="menu">
                     {links.map((link) => (

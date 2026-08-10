@@ -31,7 +31,7 @@ export default function LoginPage() {
     return (
         <div className="login-screen">
             <form className="login-card" onSubmit={handleSubmit}>
-                <h1>סידור משמרות</h1>
+                <h1>מסדרים ת'סידור</h1>
                 <p className="subtitle">התחברות למערכת</p>
 
                 <label htmlFor="username">דוא״ל</label>
