@@ -1,9 +1,11 @@
 package com.shiftscheduler.solver;
 
 import com.shiftscheduler.domain.Assignment;
+import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.EmployeeRepository;
 import com.shiftscheduler.repository.ShiftRepository;
+import com.shiftscheduler.schedule.ScheduleGuard;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,13 +20,15 @@ public class ScheduleSaver {
     private final AssignmentRepository assignmentRepository;
     private final ShiftRepository shiftRepository;
     private final EmployeeRepository employeeRepository;
+    private final ScheduleGuard guard;
 
     public ScheduleSaver(AssignmentRepository assignmentRepository,
                          ShiftRepository shiftRepository,
-                         EmployeeRepository employeeRepository) {
+                         EmployeeRepository employeeRepository, ScheduleGuard guard) {
         this.assignmentRepository = assignmentRepository;
         this.shiftRepository = shiftRepository;
         this.employeeRepository = employeeRepository;
+        this.guard = guard;
     }
 
     @Transactional
@@ -53,6 +57,9 @@ public class ScheduleSaver {
         }
 
         assignmentRepository.saveAll(created);
+
+        Schedule schedule = guard.require(solution.getScheduleId());
+        guard.markChanged(schedule);
 
         return created.size();
     }

@@ -37,6 +37,7 @@ public class ShiftConstraints implements ConstraintProvider {
         return new Constraint[]{
                 oneShiftPerDay(factory),
                 restBetweenShifts(factory),
+                restAfterPreviousWeek(factory),
                 maxShiftsPerWeek(factory),
                 wrongPosition(factory),
                 unfilledSlot(factory),
@@ -72,6 +73,21 @@ public class ShiftConstraints implements ConstraintProvider {
                 .asConstraint("Rest between shifts");
     }
 
+    // Edge case for the 8h rest rule: Saturday shift to Sunday
+    // loads PriorShiftEnd as a fact and check it here.
+    Constraint restAfterPreviousWeek(ConstraintFactory factory) {
+        return factory.forEach(ShiftSlot.class)
+                .join(PriorShiftEnd.class,
+                        Joiners.equal(slot -> slot.getEmployee().getId(),
+                                PriorShiftEnd::employeeId))
+                .filter((slot, prior) ->
+                        SchedulingRules.restHoursBetween(
+                                prior.endsAt(), prior.endsAt(),
+                                slot.getShift().getStart(), slot.getShift().getEnd())
+                                < SchedulingRules.MIN_REST_HOURS)
+                .penalize(HardMediumSoftScore.ONE_HARD)
+                .asConstraint("Rest after previous week");
+    }
     // No more than six shifts in the week.
     Constraint maxShiftsPerWeek(ConstraintFactory factory) {
         return factory.forEach(ShiftSlot.class)

@@ -285,5 +285,27 @@ class ShiftConstraintsTest {
                         filled(2L, shift(2L, MON, 7, 15), maya))
                 .penalizesBy(0);
     }
+
+    @Test
+    void lastWeeksNightLeavesNoRestForSundayMorning() {
+        // Eitan's Saturday-night shift last week ends Sunday 07:00.
+        // A Sunday-morning shift this week starts 08:00 - one hour of rest.
+        verifier.verifyThat(ShiftConstraints::restAfterPreviousWeek)
+                .given(filled(1L, shift(1L, SUN, 8, 16), eitan),
+                        new PriorShiftEnd(eitan.getId(), LocalDateTime.of(SUN, LocalTime.of(7, 0))))
+                .penalizesBy(1);
+    }
+
+    @Test
+    void aFullDayAfterLastWeekIsEnoughRest() {
+        // Ends Saturday 07:00, next shift Sunday 08:00 - 25 hours apart.
+        verifier.verifyThat(ShiftConstraints::restAfterPreviousWeek)
+                .given(filled(1L, shift(1L, SUN, 8, 16), eitan),
+                        new PriorShiftEnd(eitan.getId(),
+                                LocalDateTime.of(SUN.minusDays(1), LocalTime.of(7, 0))))
+                .penalizesBy(0);
+    }
 }
+
+
 

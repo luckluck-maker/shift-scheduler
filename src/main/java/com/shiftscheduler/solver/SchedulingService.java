@@ -10,13 +10,11 @@ import org.springframework.stereotype.Service;
 import ai.timefold.solver.core.api.solver.SolverStatus;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 // Runs the solver on one week and stores the result.
-//
-// Deliberately synchronous for now: the request waits for the solve to finish.
-// Moving it onto a JMS queue comes later, and this is the service that will
-// sit behind the consumer.
+// Runs asynchronously: solve() hands the problem to SolverManager and returns "SOLVING"
+// when the solver finishes, it saves the result. the screen checks the status every second
+// until it changes back to NOT_SOLVING.
 @Service
 public class SchedulingService {
 
@@ -77,16 +75,6 @@ public class SchedulingService {
                 solution.getScheduleId(), solution.getScore(), saved, stillEmpty);
     }
 
-    private EmployeeSchedule runSolver(Long scheduleId, EmployeeSchedule problem) {
-        try {
-            return solverManager.solve(scheduleId, problem).getFinalBestSolution();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Solving was interrupted", e);
-        } catch (ExecutionException e) {
-            throw new IllegalStateException("Solving failed", e.getCause());
-        }
-    }
 
     // Only a locked week gets solved. While collecting, employees are still
     // submitting; once published, the roster is out and only manual changes

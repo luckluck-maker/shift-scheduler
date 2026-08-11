@@ -101,16 +101,17 @@ public class ScheduleRules {
                 .filter(assignment -> !assignment.getShift().getId().equals(shift.getId()))
                 .toList();
 
+        // 1 shift a day
         boolean sameDay = existing.stream()
                 .anyMatch(assignment ->
                         assignment.getShift().getShiftDate().equals(shift.getShiftDate()));
-
         if (sameDay) {
             violations.add(RuleViolation.blocking(
                     RULE_ONE_PER_DAY,
                     employee.getFullName() + " is already assigned on " + shift.getShiftDate()));
         }
 
+        // 8h rule from this week's schedule
         LocalDateTime start = startsAt(shift);
         LocalDateTime end = endsAt(shift);
 
@@ -126,14 +127,29 @@ public class ScheduleRules {
             }
         }
 
-        long shiftCount = existing.size() + 1L;
+        // 8h rule from previous week
+        LocalDate shiftDate = shift.getShiftDate();
+        for (Assignment prior : assignmentRepository.findPublishedBefore(shiftDate.minusDays(1), shiftDate)) {
+            if (!prior.getEmployee().getId().equals(employee.getId())) {
+                continue;
+            }
+            Shift other = prior.getShift();
+            long gap = SchedulingRules.restHoursBetween(start, end, startsAt(other), endsAt(other));
+            if (gap < SchedulingRules.MIN_REST_HOURS) {
+                violations.add(RuleViolation.blocking(RULE_REST, "Only " + gap + "h rest after last week's shift on " + other.getShiftDate()));
+                break;
+            }
+        }
 
+        // Maximum 6 shifts a week
+        long shiftCount = existing.size() + 1L;
         if (shiftCount > SchedulingRules.MAX_SHIFTS_PER_WEEK) {
             violations.add(RuleViolation.blocking(
                     RULE_WEEKLY_SHIFTS,
                     employee.getFullName() + " would work " + shiftCount + " shifts this week"));
         }
 
+        // overtime
         long totalHours = existing.stream().mapToLong(a -> durationHours(a.getShift())).sum()
                 + durationHours(shift);
 
@@ -144,18 +160,5 @@ public class ScheduleRules {
                             + employee.getMaxWeeklyHours() + "h",
                     "The extra hours count as overtime beyond the contract"));
         }
-    }
-
-    private long restHoursBetween(LocalDateTime startA, LocalDateTime endA,
-                                  LocalDateTime startB, LocalDateTime endB) {
-        if (!endA.isAfter(startB)) {
-            return Duration.between(endA, startB).toHours();
-        }
-
-        if (!endB.isAfter(startA)) {
-            return Duration.between(endB, startA).toHours();
-        }
-
-        return 0;
     }
 }

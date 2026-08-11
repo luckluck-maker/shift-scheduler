@@ -49,6 +49,10 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid username or password");
         }
 
+        // Returns a unique deny message to be able to differentiate between inactive user
+        // and the incorrect password / username deny.
+        // In prod message should be set to the default invalid message to not allow
+        // information leak
         if (!employee.isActive()) {
             throw new InvalidCredentialsException("Account is disabled");
         }

@@ -24,7 +24,6 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.shiftscheduler.notification.ScheduleNotifier;
-import org.springframework.jms.core.JmsTemplate;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -76,9 +75,7 @@ public class ScheduleService {
 
     @Transactional(readOnly = true)
     public List<ScheduleSummaryResponse> findAll() {
-        // The list itself is not sensitive: it only says which weeks exist,
-        // which an employee already knows from submitting on them. What each
-        // role may open is decided per endpoint.
+
         List<Schedule> schedules = scheduleRepository.findAllByOrderByWeekStartDesc();
 
         return schedules.stream()
@@ -88,7 +85,7 @@ public class ScheduleService {
                         weekEnd(schedule),
                         schedule.getStatus().name(),
                         schedule.getVersion(),
-                        shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(schedule.getId()).size()))
+                        shiftRepository.countByScheduleId(schedule.getId())))
                 .toList();
     }
 
@@ -296,33 +293,6 @@ public class ScheduleService {
         guard.markChanged(schedule);
 
         return toShiftResponse(shift, replacements);
-    }
-
-    // The first week ever gets every shift type, with nothing required of any
-    // of them. A shift asking for nobody doesn't run, so this is an empty week
-    // the manager fills in - and from then on each week copies the one before.
-    private void buildAllShiftTypes(Schedule schedule) {
-        List<ShiftType> types = shiftTypeRepository.findAll(Sort.by("startTime"));
-
-        if (types.isEmpty()) {
-            throw new ValidationException("No shift types are defined yet");
-        }
-
-        List<Shift> shifts = new ArrayList<>();
-
-        for (int dayOffset = 0; dayOffset < DAYS_IN_WEEK; dayOffset++) {
-            LocalDate date = schedule.getWeekStart().plusDays(dayOffset);
-
-            for (ShiftType type : types) {
-                Shift shift = new Shift();
-                shift.setSchedule(schedule);
-                shift.setShiftDate(date);
-                shift.setShiftType(type);
-                shifts.add(shift);
-            }
-        }
-
-        shiftRepository.saveAll(shifts);
     }
 
     // Matches on day of the week and shift type, so a shift type that didn't
