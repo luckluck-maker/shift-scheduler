@@ -10,7 +10,8 @@ import AssignmentPanel from '../components/AssignmentPanel'
 const STATUS_LABELS = {
     COLLECTING: 'פתוח להגשת אילוצים',
     DRAFT: 'טיוטה',
-    PUBLISHED: 'פורסם',
+    SOLVING: 'בונה סידור…',
+    PUBLISHED: 'פורסם'
 }
 
 export default function ScheduleBuilderPage() {
@@ -45,6 +46,16 @@ export default function ScheduleBuilderPage() {
             void loadWeek()
         }
     }, [week])
+
+    useEffect(() => {
+        if (detail?.status === 'SOLVING' && !solving) {
+            setSolving(true)
+            waitForSolver()
+                .then(() => loadWeek(true))
+                .catch((err) => setError(messageFor(err)))
+                .finally(() => setSolving(false))
+        }
+    }, [detail?.status])
 
     async function loadWeek(keepSelection = false) {
         if (!keepSelection) {
@@ -227,6 +238,7 @@ export default function ScheduleBuilderPage() {
 
     const byShiftId = new Map(coverage.map((entry) => [entry.shiftId, entry]))
     const collecting = detail?.status === 'COLLECTING'
+    const isSolving = solving || detail?.status === 'SOLVING'
 
     const selectedShifts = detail
         ? detail.shifts.filter((shift) => selected.has(shift.id))
@@ -243,10 +255,11 @@ export default function ScheduleBuilderPage() {
                     )}
 
                     {detail?.status === 'DRAFT' && (
-                        <button onClick={() => setPublishing(true)} disabled={busy}>פרסום</button>
+                        <button onClick={() => setPublishing(true)}
+                                disabled={busy || isSolving}>פרסום</button>
                     )}
 
-                    <button className="secondary" onClick={createWeek} disabled={busy}>
+                    <button className="secondary" onClick={createWeek} disabled={busy || isSolving}>
                         שבוע חדש
                     </button>
                 </div>
@@ -261,10 +274,9 @@ export default function ScheduleBuilderPage() {
                             <span className="week-status">{STATUS_LABELS[detail?.status] ?? ''}</span>
                         </WeekPicker>
 
-                        {detail?.status === 'DRAFT' && (
-                            <button className="solve-button" disabled={solving || busy}
-                                    onClick={solve}>
-                                {solving ? 'בונה סידור…' : 'בנייה אוטומטית'}
+                        {(detail?.status === 'DRAFT' || isSolving) && (
+                            <button className="solve-button" disabled={isSolving || busy} onClick={solve}>
+                                {isSolving ? 'בונה סידור…' : 'בנייה אוטומטית'}
                             </button>
                         )}
                     </div>
@@ -307,7 +319,7 @@ export default function ScheduleBuilderPage() {
                                 </strong>
                             </div>
 
-                            {selected.size === 1 && detail.status !== 'COLLECTING' && (
+                            {selected.size === 1 && detail.status !== 'COLLECTING' && !isSolving && (
                                 <AssignmentPanel
                                     shift={selectedShifts[0]}
                                     coverage={byShiftId.get(selectedShifts[0].id)}
@@ -320,7 +332,7 @@ export default function ScheduleBuilderPage() {
                                 <RequirementFields
                                     shifts={selectedShifts}
                                     positions={positions}
-                                    busy={busy}
+                                    busy={busy || isSolving}
                                     onApply={applyRequirements}
                                 />
                             )}

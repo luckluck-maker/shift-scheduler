@@ -24,19 +24,22 @@ public class SchedulingService {
     private final ScheduleLoader loader;
     private final ScheduleSaver saver;
     private final ScheduleGuard guard;
+    private final SolvePhase phase;
 
     public SchedulingService(SolverManager<EmployeeSchedule> solverManager,
                              ScheduleLoader loader,
                              ScheduleSaver saver,
-                             ScheduleGuard guard) {
+                             ScheduleGuard guard, SolvePhase phase) {
         this.solverManager = solverManager;
         this.loader = loader;
         this.saver = saver;
         this.guard = guard;
+        this.phase = phase;
     }
 
     public SolveResponse solve(Long scheduleId) {
-        requireDraft(scheduleId);
+
+        phase.begin(scheduleId);
 
         EmployeeSchedule problem = loader.load(scheduleId);
 
@@ -54,8 +57,10 @@ public class SchedulingService {
                 .withProblemId(scheduleId)
                 .withProblem(problem)
                 .withFinalBestSolutionEventConsumer(event -> onSolved(event.solution()))
-                .withExceptionHandler((id, throwable) ->
-                        log.error("Solving schedule " + id + " failed", throwable))
+                .withExceptionHandler((id, t) -> {
+                    log.error("Solving schedule " + id + " failed", t);
+                    phase.end(scheduleId);
+                })
                 .run();
 
         return new SolveResponse(
@@ -66,6 +71,8 @@ public class SchedulingService {
 
     private void onSolved(EmployeeSchedule solution) {
         int saved = saver.save(solution);
+        phase.end(solution.getScheduleId());
+
 
         long stillEmpty = solution.getSlots().stream()
                 .filter(slot -> slot.getEmployee() == null)
@@ -75,14 +82,6 @@ public class SchedulingService {
                 solution.getScheduleId(), solution.getScore(), saved, stillEmpty);
     }
 
-
-    // Only a locked week gets solved. While collecting, employees are still
-    // submitting; once published, the roster is out and only manual changes
-    // make sense.
-    private void requireDraft(Long scheduleId) {
-        Schedule schedule = guard.require(scheduleId);
-        guard.requireStatus(schedule, ScheduleStatus.DRAFT);
-    }
 
     // The screen calls this every second while it shows the spinner.
     public SolveStatusResponse status(Long scheduleId) {

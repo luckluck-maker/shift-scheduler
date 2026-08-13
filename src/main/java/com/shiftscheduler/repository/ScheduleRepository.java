@@ -23,4 +23,6 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     List<Schedule> findByStatusAndSubmissionClosesAtBefore(
             ScheduleStatus status, Instant cutoff);
+
+    List<Schedule> findByStatus(ScheduleStatus status);
 }
