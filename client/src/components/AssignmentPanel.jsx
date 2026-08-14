@@ -8,7 +8,7 @@ import { ruleText, isBlocking, RULE_CONSEQUENCE } from '../i18n/rules'
 // 1. Ensure the manager has full view of his employees
 // 2. Allows the manager to view who can't be assigned and why
 // 3. Allows the manager to assign someone who isn't required per shift requirement
-export default function AssignmentPanel({ shift, coverage, onChanged, onError }) {
+export default function AssignmentPanel({ shift, coverage, scheduleVersion, onChanged, onError }) {
     const [candidates, setCandidates] = useState([])
     const [chosen, setChosen] = useState('')
     const [busy, setBusy] = useState(false)
@@ -64,7 +64,7 @@ export default function AssignmentPanel({ shift, coverage, onChanged, onError })
         setBusy(true)
 
         try {
-            await api.delete(`/api/assignments/${assignmentId}`)
+            await api.delete(`/api/assignments/${assignmentId}?version=${scheduleVersion}`)
             onChanged()
         } catch {
             onError('ההסרה נכשלה')

@@ -75,4 +75,12 @@ public class ScheduleController {
                                               @Valid @RequestBody DeadlineRequest request) {
         return scheduleService.setSubmissionDeadline(id, request);
     }
+
+    @PostMapping("/{scheduleId}/requirements/clear")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('MANAGER')")
+    public void clearRequirements(@PathVariable Long scheduleId,
+                                  @Valid @RequestBody ClearShiftsRequest request) {
+        scheduleService.clearRequirements(scheduleId, request.shiftIds(), request.version());
+    }
 }

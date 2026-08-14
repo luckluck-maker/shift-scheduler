@@ -4,6 +4,7 @@ import com.shiftscheduler.domain.ShiftRequirement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.shiftscheduler.domain.ScheduleStatus;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ShiftRequirementRepository extends JpaRepository<ShiftRequirement, Long> {
@@ -16,4 +17,6 @@ public interface ShiftRequirementRepository extends JpaRepository<ShiftRequireme
             Long jobPositionId, ScheduleStatus status);
 
     void deleteByShiftId(Long shiftId);
+
+    void deleteByShiftIdInAndShiftScheduleId(Collection<Long> shiftIds, Long scheduleId);
 }

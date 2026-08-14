@@ -370,7 +370,8 @@ public class ScheduleService {
         return schedule.getWeekStart().plusDays(DAYS_IN_WEEK - 1L);
     }
 
-    private EmployeeShiftResponse toEmployeeShift(Shift shift, ShiftPreference preference) {
+    private EmployeeShiftResponse toEmployeeShift(Shift shift, ShiftPreference preference)
+    {
         ShiftType type = shift.getShiftType();
 
         return new EmployeeShiftResponse(
@@ -446,6 +447,16 @@ public class ScheduleService {
         guard.markChanged(schedule);
 
         return findById(id);
+    }
+
+    @Transactional
+    public void clearRequirements(Long scheduleId, List<Long> shiftIds, Long version) {
+        Schedule schedule = guard.require(scheduleId);
+        guard.requireStatus(schedule, ScheduleStatus.COLLECTING, ScheduleStatus.DRAFT);
+        guard.requireVersion(schedule, version);
+
+        requirementRepository.deleteByShiftIdInAndShiftScheduleId(shiftIds, scheduleId);
+        guard.markChanged(schedule);
     }
 
 }

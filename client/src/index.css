@@ -892,10 +892,15 @@ button.secondary {
   margin-bottom: 0.8rem;
 }
 
-.solve-button {
+.week-actions {
   position: absolute;
   top: 0;
   right: 0;
+  display: flex;
+  gap: 0.7rem;
+}
+
+.solve-button {
   background: #7d6ba3;
 }
 

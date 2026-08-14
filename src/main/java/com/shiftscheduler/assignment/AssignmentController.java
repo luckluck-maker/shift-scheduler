@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.shiftscheduler.schedule.ClearShiftsRequest;
+
 import java.util.List;
 
 @RestController
@@ -33,8 +35,8 @@ public class AssignmentController {
 
     @DeleteMapping("/schedules/{scheduleId}/assignments")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void clearAll(@PathVariable Long scheduleId) {
-        assignmentService.clearAll(scheduleId);
+    public void clearAll(@PathVariable Long scheduleId, @RequestParam Long version) {
+        assignmentService.clearAll(scheduleId, version);
     }
 
     @GetMapping("/shifts/{shiftId}/available-employees")
@@ -52,7 +54,14 @@ public class AssignmentController {
 
     @DeleteMapping("/assignments/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        assignmentService.delete(id);
+    public void delete(@PathVariable Long id, @RequestParam Long version) {
+        assignmentService.delete(id, version);
+    }
+
+    @PostMapping("/schedules/{scheduleId}/assignments/clear")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void clearShifts(@PathVariable Long scheduleId,
+                            @Valid @RequestBody ClearShiftsRequest request) {
+        assignmentService.clearShifts(scheduleId, request.shiftIds(), request.version());
     }
 }

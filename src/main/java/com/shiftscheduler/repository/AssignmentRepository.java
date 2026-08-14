@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
@@ -18,6 +19,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 
     List<Assignment> findByShiftScheduleIdAndEmployeeId(Long scheduleId, Long employeeId);
 
+    List<Assignment> findByShiftScheduleIdAndShiftIdIn(Long scheduleId,
+                                                       Collection<Long> shiftIds);
 
     // Assignments from the day before this week starts, from published schedules
     // only, so the rest rule still applies across the week boundary.

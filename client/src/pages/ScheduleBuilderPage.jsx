@@ -162,6 +162,25 @@ export default function ScheduleBuilderPage() {
         }
     }
 
+    async function clearShiftAssignments() {
+        if (!confirm(`לאפס את השיבוצים של ${selected.size} משמרות?`)) return
+        await act(() => api.post(`/api/schedules/${week.id}/assignments/clear`,
+            { version: detail.version, shiftIds: selectedIds }))
+    }
+
+    async function clearShiftRequirements() {
+        if (!confirm(`לאפס את דרישות האיוש של ${selected.size} משמרות?`)) return
+        await act(() => api.post(`/api/schedules/${week.id}/requirements/clear`,
+            { version: detail.version, shiftIds: selectedIds }))
+    }
+
+    // Clears the whole week
+    async function clearWholeWeek() {
+        if (!confirm('לאפס את כל השיבוצים בשבוע?')) return
+        await act(() => api.delete(
+            `/api/schedules/${week.id}/assignments?version=${detail.version}`))
+    }
+
     async function lock() {
         await act(() => api.put(`/api/schedules/${week.id}/lock`,
             { version: detail.version }))
@@ -239,10 +258,18 @@ export default function ScheduleBuilderPage() {
     const byShiftId = new Map(coverage.map((entry) => [entry.shiftId, entry]))
     const collecting = detail?.status === 'COLLECTING'
     const isSolving = solving || detail?.status === 'SOLVING'
+    const weekAssignedCount = coverage
+        .reduce((n, entry) => n + entry.assignments.length, 0)
 
     const selectedShifts = detail
         ? detail.shifts.filter((shift) => selected.has(shift.id))
         : []
+
+    const selectedIds = [...selected]
+    const assignedCount = selectedIds
+        .reduce((n, id) => n + (byShiftId.get(id)?.assignments.length ?? 0), 0)
+    const requirementCount = selectedShifts
+        .reduce((n, s) => n + s.requirements.length, 0)
 
     return (
         <>
@@ -274,11 +301,19 @@ export default function ScheduleBuilderPage() {
                             <span className="week-status">{STATUS_LABELS[detail?.status] ?? ''}</span>
                         </WeekPicker>
 
-                        {(detail?.status === 'DRAFT' || isSolving) && (
-                            <button className="solve-button" disabled={isSolving || busy} onClick={solve}>
-                                {isSolving ? 'בונה סידור…' : 'בנייה אוטומטית'}
-                            </button>
-                        )}
+                        <div className="week-actions">
+                            {(detail?.status === 'DRAFT' || isSolving) && (
+                                <button className="solve-button" disabled={isSolving || busy} onClick={solve}>
+                                    {isSolving ? 'בונה סידור…' : 'בנייה אוטומטית'}
+                                </button>
+                            )}
+                            {detail?.status === 'DRAFT' && (
+                                <button className="danger" onClick={clearWholeWeek}
+                                        disabled={busy || isSolving || weekAssignedCount === 0}>
+                                    איפוס כל השיבוצים
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {solveResult && (
@@ -294,6 +329,7 @@ export default function ScheduleBuilderPage() {
                                 && ` · ${solveResult.deserted} תפקידים ללא איוש כלל`}
                         </p>
                     )}
+
 
                     {error && <p className="error">{error}</p>}
 
@@ -317,12 +353,18 @@ export default function ScheduleBuilderPage() {
                                         ? describe(selectedShifts[0])
                                         : `${selected.size} משמרות נבחרו`}
                                 </strong>
+
+                                <button className="danger" onClick={clearShiftAssignments}
+                                        disabled={busy || isSolving || assignedCount === 0 || detail.status !== 'DRAFT'}>
+                                    איפוס שיבוצים
+                                </button>
                             </div>
 
                             {selected.size === 1 && detail.status !== 'COLLECTING' && !isSolving && (
                                 <AssignmentPanel
                                     shift={selectedShifts[0]}
                                     coverage={byShiftId.get(selectedShifts[0].id)}
+                                    scheduleVersion={detail.version}
                                     onChanged={() => loadWeek(true)}
                                     onError={setError}
                                 />
@@ -333,7 +375,9 @@ export default function ScheduleBuilderPage() {
                                     shifts={selectedShifts}
                                     positions={positions}
                                     busy={busy || isSolving}
+                                    canClear={requirementCount > 0 && detail.status !== 'PUBLISHED'}
                                     onApply={applyRequirements}
+                                    onClear={clearShiftRequirements}
                                 />
                             )}
                         </div>
@@ -360,7 +404,7 @@ export default function ScheduleBuilderPage() {
     )
 }
 // Each position carries a count and whether the shift can run without it.
-function RequirementFields({ shifts, positions, busy, onApply }) {
+function RequirementFields({ shifts, positions, busy, canClear, onApply, onClear }) {
     const [values, setValues] = useState({})
 
     // A new selection brings its own numbers. Where the selected shifts differ
@@ -429,6 +473,10 @@ function RequirementFields({ shifts, positions, busy, onApply }) {
             <div className="form-actions">
                 <button onClick={() => onApply(values)} disabled={busy}>
                     {busy ? 'שומר…' : 'שמירת דרישות'}
+                </button>
+
+                <button className="danger" onClick={onClear} disabled={busy || !canClear}>
+                    איפוס דרישות איוש
                 </button>
             </div>
         </div>

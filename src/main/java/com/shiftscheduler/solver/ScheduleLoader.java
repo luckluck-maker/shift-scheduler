@@ -15,13 +15,9 @@ import com.shiftscheduler.domain.SchedulingRules;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.HashSet;
-import java.util.Set;
 
 // Builds the object the solver works on based on the database.
 // Reads only — nothing here decides anything or writes anything back.
@@ -79,9 +75,13 @@ public class ScheduleLoader {
                 loadEmployees(leave, averageShiftMinutes(scheduleId));
         Map<Long, PlanningShift> shifts = loadShifts(scheduleId);
 
+        // added to enable different solutions for each run
+        List<PlanningEmployee> pool = new ArrayList<>(employees.values());
+        Collections.shuffle(pool);
+
         return new EmployeeSchedule(
                 scheduleId,
-                List.copyOf(employees.values()),
+                pool,
                 leave,
                 loadDislikes(scheduleId),
                 loadPriorShiftEnds(weekStart),

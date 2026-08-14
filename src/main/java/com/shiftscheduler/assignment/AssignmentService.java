@@ -160,28 +160,40 @@ public class AssignmentService {
     }
 
     @Transactional
-    public void clearAll(Long scheduleId) {
+    public void clearShifts(Long scheduleId, List<Long> shiftIds, Long version) {
         Schedule schedule = guard.require(scheduleId);
         guard.requireStatus(schedule, ScheduleStatus.DRAFT);
+        guard.requireVersion(schedule, version);
 
-        List<Assignment> assignments =
-                assignmentRepository.findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(scheduleId);
-
-        assignmentRepository.deleteAll(assignments);
-        guard.markChanged(schedule);
+        // Filtering by schedule as well as by shift
+        clearAssignments(schedule,
+                assignmentRepository.findByShiftScheduleIdAndShiftIdIn(scheduleId, shiftIds));
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void clearAll(Long scheduleId, Long version) {
+        Schedule schedule = guard.require(scheduleId);
+        guard.requireStatus(schedule, ScheduleStatus.DRAFT);
+        guard.requireVersion(schedule, version);
+
+        clearAssignments(schedule,
+                assignmentRepository.
+                        findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(scheduleId));
+    }
+
+    @Transactional
+    public void delete(Long id, Long version) {
         Assignment assignment = assignmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment " + id + " not found"));
 
         Schedule schedule = assignment.getShift().getSchedule();
         guard.requireStatus(schedule, ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED);
+        guard.requireVersion(schedule, version);
 
-        assignmentRepository.delete(assignment);
-        guard.markChanged(schedule);
+        clearAssignments(schedule, List.of(assignment));
     }
+
+
 
     @Transactional(readOnly = true)
     public List<ShiftCoverage> coverage(Long scheduleId) {
@@ -339,5 +351,10 @@ public class AssignmentService {
                 shift.getSchedule().getVersion(),
                 warnings,
                 applied);
+    }
+
+    private void clearAssignments(Schedule schedule, List<Assignment> assigns) {
+        assignmentRepository.deleteAll(assigns);
+        guard.markChanged(schedule);
     }
 }

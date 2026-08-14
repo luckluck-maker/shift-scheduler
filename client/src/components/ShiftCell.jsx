@@ -8,7 +8,9 @@
 // red for an essential position with nobody in it at all.
 // green for a position that has been filled.
 export default function ShiftCell({ coverage, collecting }) {
-    if (!coverage || coverage.positions.length === 0) {
+    const extras = coverage ? unrequested(coverage) : []
+
+    if (!coverage || (coverage.positions.length === 0 && extras.length === 0)) {
         return <span className="slot-none">—</span>
     }
 
