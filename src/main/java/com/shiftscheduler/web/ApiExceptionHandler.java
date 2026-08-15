@@ -8,6 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.stream.Collectors;
@@ -59,10 +63,24 @@ public class ApiExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, details, null);
     }
 
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ApiError> handleUnreadable(Exception ex) {
+        return build(HttpStatus.BAD_REQUEST, "The request could not be read", null);
+    }
+
     private ResponseEntity<ApiError> build(HttpStatus status, String message, String code) {
         ApiError body = new ApiError(
                 Instant.now(), status.value(), status.getReasonPhrase(), code, message);
 
         return ResponseEntity.status(status).body(body);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDuplicate(DataIntegrityViolationException ex) {
+        return build(HttpStatus.CONFLICT,
+                "That record already exists. Reload and try again.", ErrorCode.DUPLICATE);
     }
 }

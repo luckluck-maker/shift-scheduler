@@ -12,6 +12,7 @@ public record AssignmentCreateRequest(
 
         boolean override,
 
+        @NotNull
         Long scheduleVersion
 ) {
 }

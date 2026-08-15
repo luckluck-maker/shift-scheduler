@@ -92,7 +92,7 @@ export default function ScheduleBuilderPage() {
         }
 
         function onKey(event) {
-            if (event.key === 'Escape') {
+            if (event.key === 'Escape' && !document.querySelector('.modal-backdrop')) {
                 setSelected(new Set())
             }
         }
@@ -509,16 +509,21 @@ function describe(shift) {
     return `${shift.shiftTypeName} · ${Number(day)}/${Number(month)}/${year}`
 }
 
+// Today is local, the days are added in UTC so a clock change can't move them.
 function nextSunday() {
-    const date = new Date()
-    date.setDate(date.getDate() + ((7 - date.getDay()) % 7 || 7))
-    return date.toISOString().slice(0, 10)
+    const now = new Date()
+    const daysAhead = (7 - now.getDay()) % 7 || 7
+
+    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + daysAhead))
+        .toISOString().slice(0, 10)
 }
 
+// UTC so the daylight saving switch can't push the week off a Sunday.
 function addDays(iso, days) {
-    const date = new Date(iso)
-    date.setDate(date.getDate() + days)
-    return date.toISOString().slice(0, 10)
+    const [year, month, day] = iso.split('-').map(Number)
+
+    return new Date(Date.UTC(year, month - 1, day + days))
+        .toISOString().slice(0, 10)
 }
 
 function messageFor(error) {

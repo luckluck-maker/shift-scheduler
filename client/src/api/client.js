@@ -34,6 +34,12 @@ async function request(method, path, body) {
     const payload = text ? JSON.parse(text) : null
 
     if (!response.ok) {
+
+        // token expired or cleared, returns to the login screen
+        if (response.status === 401 && !path.includes('/api/auth/')) {
+            window.location.href = '/login'
+            return null
+        }
         throw new ApiError(response.status, payload?.message ?? 'Request failed',
             payload?.code, payload)
 

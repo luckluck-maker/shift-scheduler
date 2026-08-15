@@ -52,12 +52,16 @@ export default function EmployeesPage() {
         }
 
         try {
-            await api.delete(`/api/employees/${employee.id}`)
+            await api.delete(`/api/employees/${employee.id}?version=${employee.version}`)
             await load()
         } catch (err) {
-            setError(err.status === 400
-                ? 'חייב להישאר לפחות מנהל אחד פעיל'
-                : 'ההשבתה נכשלה')
+            if (err.code === 'STALE_VERSION') {
+                setError('הפרטים שונו במקביל. רענן ונסה שוב')
+            } else if (err.code === 'LAST_MANAGER' || err.status === 400) {
+                setError('חייב להישאר לפחות מנהל אחד פעיל')
+            } else {
+                setError('ההשבתה נכשלה')
+            }
         }
     }
 
@@ -89,7 +93,7 @@ export default function EmployeesPage() {
                 {employees.map((employee) => (
                     <tr key={employee.id} className={employee.active ? '' : 'row-muted'}>
                         <td>{employee.fullName}</td>
-                        <td>{employee.username}</td>
+                        <td className="ltr">{employee.username}</td>
                         <td>{employee.jobPositionName}</td>
                         <td>{employee.maxWeeklyHours}</td>
                         <td>
@@ -164,6 +168,10 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
                     active: form.active,
                     jobPositionId: Number(form.jobPositionId),
                 })
+                if (form.password) {
+                    await api.put(`/api/employees/${employee.id}/password`,
+                        { newPassword: form.password })
+                }
             }
 
             onSaved()
@@ -184,20 +192,21 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
                 </Field>
 
                 {isNew && (
-                    <>
-                        <Field label="דוא״ל">
-                            <input type="email" value={form.username}
-                                   onChange={(e) => set('username', e.target.value)}
-                                   required />
-                        </Field>
-
-                        <Field label="סיסמה">
-                            <input type="password" value={form.password}
-                                   onChange={(e) => set('password', e.target.value)}
-                                   minLength={8} required />
-                        </Field>
-                    </>
+                    <Field label="דוא״ל">
+                        <input type="email" value={form.username}
+                               onChange={(e) => set('username', e.target.value)}
+                               required />
+                    </Field>
                 )}
+
+                {/* Required for a new employee, optional when editing - left empty
+                    the password simply stays as it is. */}
+                <Field label={isNew ? 'סיסמה' : 'סיסמה חדשה'}>
+                    <input type="password" value={form.password ?? ''}
+                           onChange={(e) => set('password', e.target.value)}
+                           minLength={8} required={isNew}
+                           placeholder={isNew ? undefined : 'השאר ריק כדי לא לשנות'} />
+                </Field>
 
                 <Field label="תפקיד">
                     <select value={form.jobPositionId}

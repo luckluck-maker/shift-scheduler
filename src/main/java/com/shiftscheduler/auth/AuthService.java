@@ -77,6 +77,7 @@ public class AuthService {
                 .subject(employee.getUsername())
                 .claim("employeeId", employee.getId())
                 .claim("role", employee.getRole().name())
+                .claim("fullName", employee.getFullName())
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

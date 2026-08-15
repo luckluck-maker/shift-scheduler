@@ -15,7 +15,7 @@ public class JobPosition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 60)
+    @Column(nullable = false, length = 60)
     private String name;
 
     // Soft delete flag, same reasoning as on ShiftType.

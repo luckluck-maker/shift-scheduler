@@ -53,17 +53,17 @@ export default function PositionsAndShiftTypesPage() {
     }
 
     async function removeShiftType(shiftType) {
-        if (!confirm(`למחוק את סוג המשמרת ${shiftType.name}?`)) {
+        if (!confirm(`למחוק את סוג המשמרת ${shiftType.name}?\n`
+            + 'מחיקת סוג המשמרת תמחק את כל המשמרות בסידורים שטרם פורסמו.\n'
+            + 'סידורים מפורסמים לא ישתנו.')) {
             return
         }
 
         try {
             await api.delete(`/api/shift-types/${shiftType.id}`)
             await load()
-        } catch (err) {
-            setError(err.status === 409
-                ? 'לא ניתן למחוק סוג משמרת שנמצא בשימוש'
-                : 'המחיקה נכשלה')
+        } catch {
+            setError('המחיקה נכשלה')
         }
     }
 

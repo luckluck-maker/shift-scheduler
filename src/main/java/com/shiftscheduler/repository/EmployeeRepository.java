@@ -3,6 +3,7 @@ package com.shiftscheduler.repository;
 import com.shiftscheduler.domain.Employee;
 import com.shiftscheduler.domain.Role;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,8 @@ import java.util.Optional;
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     Optional<Employee> findByUsername(String username);
+    Optional<Employee> findByIdAndActiveTrue(Long id);
+    List<Employee> findByActiveTrue(Sort sort);
 
     boolean existsByJobPositionIdAndActiveTrue(Long jobPositionId);
 

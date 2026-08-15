@@ -132,17 +132,16 @@ function shiftTypeRows(shifts) {
     return [...byName.values()].sort((a, b) => a.startTime.localeCompare(b.startTime))
 }
 
+// Built in UTC so the daylight saving switch can't shift the dates.
 function weekDays(weekStart) {
-    const start = new Date(weekStart)
-
+    const [year, month, day] = weekStart.split('-').map(Number)
     return Array.from({ length: 7 }, (unused, offset) => {
-        const date = new Date(start)
-        date.setDate(start.getDate() + offset)
+        const date = new Date(Date.UTC(year, month - 1, day + offset))
 
         return {
             iso: date.toISOString().slice(0, 10),
             name: DAY_NAMES[offset],
-            label: `${date.getDate()}/${date.getMonth() + 1}`,
+            label: `${date.getUTCDate()}/${date.getUTCMonth() + 1}`,
         }
     })
 }

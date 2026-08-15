@@ -1,6 +1,7 @@
 package com.shiftscheduler.repository;
 
 import com.shiftscheduler.domain.Assignment;
+import com.shiftscheduler.domain.ScheduleStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,6 +22,12 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 
     List<Assignment> findByShiftScheduleIdAndShiftIdIn(Long scheduleId,
                                                        Collection<Long> shiftIds);
+
+    List<Assignment> findByEmployeeIdAndShiftShiftDateBetween(Long employeeId,
+                                                              LocalDate from, LocalDate to);
+
+    List<Assignment> findByEmployeeIdAndShiftScheduleStatusIn(
+            Long employeeId, Collection<ScheduleStatus> statuses);
 
     // Assignments from the day before this week starts, from published schedules
     // only, so the rest rule still applies across the week boundary.

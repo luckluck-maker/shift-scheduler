@@ -24,7 +24,7 @@ public class Employee {
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, unique = true, length = 120)
     private String username;
 
     @Column(name = "password_hash", nullable = false, length = 100)

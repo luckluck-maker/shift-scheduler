@@ -66,12 +66,9 @@ public class ShiftPreferenceService {
             throw new ConflictException("A preference for this shift already exists");
         }
 
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee " + employeeId + " not found"));
-
-        if (!employee.isActive()) {
-            throw new ValidationException("A disabled employee cannot submit preferences");
-        }
+        Employee employee = employeeRepository.findByIdAndActiveTrue(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Employee " + employeeId + " not found"));
 
         ShiftPreference preference = new ShiftPreference();
         preference.setEmployee(employee);

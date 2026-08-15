@@ -10,7 +10,6 @@ import com.shiftscheduler.domain.ShiftRequirement;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.EmployeeLeaveRepository;
 import com.shiftscheduler.repository.EmployeeRepository;
-import com.shiftscheduler.repository.ScheduleRepository;
 import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftRequirementRepository;
@@ -37,7 +36,6 @@ public class AssignmentService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeLeaveRepository leaveRepository;
     private final ShiftPreferenceRepository preferenceRepository;
-    private final ScheduleRepository scheduleRepository;
     private final ScheduleRules rules;
     private final ScheduleGuard guard;
 
@@ -47,7 +45,6 @@ public class AssignmentService {
                              EmployeeRepository employeeRepository,
                              EmployeeLeaveRepository leaveRepository,
                              ShiftPreferenceRepository preferenceRepository,
-                             ScheduleRepository scheduleRepository,
                              ScheduleRules rules,
                              ScheduleGuard guard) {
         this.assignmentRepository = assignmentRepository;
@@ -56,7 +53,6 @@ public class AssignmentService {
         this.employeeRepository = employeeRepository;
         this.leaveRepository = leaveRepository;
         this.preferenceRepository = preferenceRepository;
-        this.scheduleRepository = scheduleRepository;
         this.rules = rules;
         this.guard = guard;
     }
@@ -71,7 +67,7 @@ public class AssignmentService {
         guard.requireStatus(schedule, ScheduleStatus.DRAFT, ScheduleStatus.PUBLISHED);
         guard.requireVersion(schedule, request.scheduleVersion());
 
-        Employee employee = employeeRepository.findById(request.employeeId())
+        Employee employee = employeeRepository.findByIdAndActiveTrue(request.employeeId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee " + request.employeeId() + " not found"));
 
@@ -152,6 +148,8 @@ public class AssignmentService {
                 }
                 case ScheduleRules.RULE_NO_SLOT ->
                         applied.add("Assigned beyond the staffing requirement");
+                case ScheduleRules.RULE_WEEKLY_HOURS ->
+                        applied.add("Accepted the overtime beyond the contract");
                 default -> { }
             }
         }
@@ -227,8 +225,8 @@ public class AssignmentService {
                 .map(assignment -> assignment.getEmployee().getId())
                 .collect(Collectors.toSet());
 
-        return employeeRepository.findAll(Sort.by("fullName")).stream()
-                .filter(Employee::isActive)
+        return employeeRepository.findByActiveTrue(Sort.by("fullName")).stream()
+                .filter(employee -> !alreadyAssigned.contains(employee.getId()))
                 .filter(employee -> !alreadyAssigned.contains(employee.getId()))
                 .filter(employee -> jobPositionId == null
                         || employee.getJobPosition().getId().equals(jobPositionId))
@@ -259,14 +257,6 @@ public class AssignmentService {
                 .flatMap(severity -> violations.stream()
                         .filter(violation -> severity.equals(violation.severity())))
                 .map(RuleViolation::rule)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private String firstMessage(List<RuleViolation> violations, String severity) {
-        return violations.stream()
-                .filter(violation -> severity.equals(violation.severity()))
-                .map(RuleViolation::message)
                 .findFirst()
                 .orElse(null);
     }

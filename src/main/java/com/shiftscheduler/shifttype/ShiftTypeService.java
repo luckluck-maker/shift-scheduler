@@ -64,8 +64,7 @@ public class ShiftTypeService {
         requireDifferentTimes(request);
         requireNameFree(name, id);
 
-        // The name is a label, the hours are what the schedule is built on, so
-        // renaming applies everywhere and changing the hours does not.
+        // editing name for the same shift (hours), keep the shift
         if (sameTimes(current, request)) {
             current.setName(name);
             return toResponse(current);

@@ -219,6 +219,19 @@ input, select {
   font-family: inherit;
 }
 
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="time"] {
+  direction: ltr;
+  text-align: right;
+}
+
+.ltr {
+  direction: ltr;
+  text-align: right;
+}
+
 input:focus-visible,
 select:focus-visible,
 button:focus-visible {

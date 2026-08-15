@@ -7,6 +7,8 @@ public final class ErrorCode {
     public static final String LAST_MANAGER = "LAST_MANAGER";
     public static final String STALE_VERSION = "STALE_VERSION";
     public static final String WRONG_STATUS = "WRONG_STATUS";
+    public static final String DUPLICATE = "DUPLICATE";
+    public static final String SHIFT_ASSIGNED = "SHIFT_ASSIGNED";
 
     private ErrorCode() {
     }

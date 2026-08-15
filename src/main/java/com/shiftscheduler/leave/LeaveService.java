@@ -9,6 +9,9 @@ import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.shiftscheduler.domain.Assignment;
+import com.shiftscheduler.repository.AssignmentRepository;
+import com.shiftscheduler.web.ErrorCode;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -22,11 +25,14 @@ public class LeaveService {
 
     private final EmployeeLeaveRepository leaveRepository;
     private final EmployeeRepository employeeRepository;
+    private final AssignmentRepository assignmentRepository;
 
     public LeaveService(EmployeeLeaveRepository leaveRepository,
-                        EmployeeRepository employeeRepository) {
+                        EmployeeRepository employeeRepository,
+                        AssignmentRepository assignmentRepository) {
         this.leaveRepository = leaveRepository;
         this.employeeRepository = employeeRepository;
+        this.assignmentRepository = assignmentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +56,7 @@ public class LeaveService {
             throw new ValidationException("A leave range cannot exceed " + MAX_RANGE_DAYS + " days");
         }
 
-        Employee employee = employeeRepository.findById(request.employeeId())
+        Employee employee = employeeRepository.findByIdAndActiveTrue(request.employeeId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Employee " + request.employeeId() + " not found"));
 
@@ -60,6 +66,17 @@ public class LeaveService {
         if (!existing.isEmpty()) {
             throw new ConflictException(
                     employee.getFullName() + " already has leave on " + existing.getFirst().getLeaveDate());
+        }
+
+        // Cannot set up leave if already assigned
+        List<Assignment> clashes = assignmentRepository.findByEmployeeIdAndShiftShiftDateBetween(
+                employee.getId(), request.startDate(), request.endDate());
+
+        if (!clashes.isEmpty()) {
+            throw new ConflictException(employee.getFullName()
+                    + " is already assigned to a shift on "
+                    + clashes.getFirst().getShift().getShiftDate(),
+                    ErrorCode.SHIFT_ASSIGNED);
         }
 
         List<EmployeeLeave> days = new ArrayList<>();

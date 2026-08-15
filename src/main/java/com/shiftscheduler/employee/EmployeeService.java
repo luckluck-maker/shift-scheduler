@@ -13,7 +13,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.shiftscheduler.domain.Assignment;
+import com.shiftscheduler.domain.ScheduleStatus;
+import com.shiftscheduler.repository.AssignmentRepository;
+import com.shiftscheduler.schedule.ScheduleGuard;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 
 @Service
@@ -23,12 +29,20 @@ public class EmployeeService {
     private final JobPositionRepository jobPositionRepository;
     private final PasswordEncoder passwordEncoder;
 
+    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
+
+    private final AssignmentRepository assignmentRepository;
+    private final ScheduleGuard guard;
+
     public EmployeeService(EmployeeRepository employeeRepository,
                            JobPositionRepository jobPositionRepository,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           AssignmentRepository assignmentRepository, ScheduleGuard guard) {
         this.employeeRepository = employeeRepository;
         this.jobPositionRepository = jobPositionRepository;
         this.passwordEncoder = passwordEncoder;
+        this.assignmentRepository = assignmentRepository;
+        this.guard = guard;
     }
 
     @Transactional(readOnly = true)
@@ -90,14 +104,16 @@ public class EmployeeService {
     }
 
     @Transactional
-    public void deactivate(Long id) {
+    public void deactivate(Long id, Long version) {
         Employee employee = require(id);
+        requireCurrentVersion(employee, version);
 
         if (employee.getRole() == Role.MANAGER && employee.isActive()) {
             guardLastManager(employee.getId());
         }
 
         employee.setActive(false);
+        releaseFromDrafts(employee);
     }
 
     @Transactional
@@ -153,5 +169,25 @@ public class EmployeeService {
                 employee.getJobPosition().getId(),
                 employee.getJobPosition().getName(),
                 employee.getVersion());
+    }
+
+    // remove deactivated employee from all active drafts
+    private void releaseFromDrafts(Employee employee) {
+        List<Assignment> assignments = assignmentRepository
+                .findByEmployeeIdAndShiftScheduleStatusIn(employee.getId(),
+                        List.of(ScheduleStatus.DRAFT, ScheduleStatus.SOLVING));
+
+        if (assignments.isEmpty()) {
+            return;
+        }
+
+        for (Assignment assignment : assignments) {
+            guard.markChanged(assignment.getShift().getSchedule());
+        }
+
+        assignmentRepository.deleteAll(assignments);
+
+        log.info("Disabled {} and removed {} assignment(s) from draft weeks",
+                employee.getFullName(), assignments.size());
     }
 }

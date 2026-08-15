@@ -9,6 +9,7 @@ import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftRequirementRepository;
 import com.shiftscheduler.web.ResourceNotFoundException;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.shiftscheduler.domain.SchedulingRules;
@@ -69,11 +70,14 @@ public class ScheduleLoader {
         LocalDate weekStart = schedule.getWeekStart();
         LocalDate weekEnd = weekStart.plusDays(DAYS_IN_WEEK - 1L);
 
+        List<Shift> weekShifts =
+                shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(scheduleId);
+
         List<UnavailableDay> leave = loadLeave(weekStart, weekEnd);
 
+        Map<Long, PlanningShift> shifts = toPlanningShifts(weekShifts);
         Map<Long, PlanningEmployee> employees =
-                loadEmployees(leave, averageShiftMinutes(scheduleId));
-        Map<Long, PlanningShift> shifts = loadShifts(scheduleId);
+                loadEmployees(leave, averageShiftMinutes(weekShifts));
 
         // added to enable different solutions for each run
         List<PlanningEmployee> pool = new ArrayList<>(employees.values());
@@ -85,7 +89,7 @@ public class ScheduleLoader {
                 leave,
                 loadDislikes(scheduleId),
                 loadPriorShiftEnds(weekStart),
-                buildSlots(scheduleId, shifts, employees));
+                buildSlots(scheduleId, weekShifts, shifts, employees));
     }
 
     // The contract is turned into a number of shifts here, where shift lengths
@@ -97,8 +101,7 @@ public class ScheduleLoader {
                 .collect(Collectors.groupingBy(UnavailableDay::employeeId,
                         Collectors.counting()));
 
-        return employeeRepository.findAll().stream()
-                .filter(Employee::isActive)
+        return employeeRepository.findByActiveTrue(Sort.unsorted()).stream()
                 .map(employee -> {
                     int contracted = employee.getMaxWeeklyHours() * 60 / shiftMinutes;
                     int away = leaveDays.getOrDefault(employee.getId(), 0L).intValue();
@@ -113,8 +116,8 @@ public class ScheduleLoader {
                 .collect(Collectors.toMap(PlanningEmployee::getId, Function.identity()));
     }
 
-    private Map<Long, PlanningShift> loadShifts(Long scheduleId) {
-        return shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(scheduleId).stream()
+    private Map<Long, PlanningShift> toPlanningShifts(List<Shift> weekShifts) {
+        return weekShifts.stream()
                 .map(ScheduleLoader::toPlanningShift)
                 .collect(Collectors.toMap(PlanningShift::getId, Function.identity()));
     }
@@ -122,9 +125,7 @@ public class ScheduleLoader {
     // Shifts are usually all the same length, but nothing stops a manager
     // defining a six-hour one. Averaging keeps the contract-in-shifts figure
     // roughly right either way.
-    private int averageShiftMinutes(Long scheduleId) {
-        List<Shift> shifts = shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(scheduleId);
-
+    private int averageShiftMinutes(List<Shift> shifts) {
         if (shifts.isEmpty()) {
             return DEFAULT_SHIFT_MINUTES;
         }
@@ -154,10 +155,11 @@ public class ScheduleLoader {
     }
 
     // One slot per person a shift needs. Slots that already have someone are
-    // pinned - the solver counts them in every rule but can't move them.
+    // pinned are counted in every rule & the solver can't move them.
     // The ones left empty are what it fills in, so a partially staffed shift gets
     // completed.
     private List<ShiftSlot> buildSlots(Long scheduleId,
+                                       List<Shift> weekShifts,
                                        Map<Long, PlanningShift> shifts,
                                        Map<Long, PlanningEmployee> employees) {
 
@@ -174,7 +176,7 @@ public class ScheduleLoader {
         List<ShiftSlot> slots = new ArrayList<>();
         long slotId = 1;
 
-        for (Shift shift : shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(scheduleId)) {
+        for (Shift shift : weekShifts) {
             PlanningShift planningShift = shifts.get(shift.getId());
 
             List<Assignment> assignments = assignmentsByShift.getOrDefault(shift.getId(), List.of());
@@ -214,7 +216,7 @@ public class ScheduleLoader {
                 }
             }
 
-            // Someone assigned to a position this shift never asked for gets no
+            // Someone assigned to a position not required for the shift gets no
             // slot above, so they need one here. Leaving them out would hide from
             // the solver that they are working, and it could put them somewhere
             // that overlaps.

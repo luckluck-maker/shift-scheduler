@@ -28,7 +28,10 @@ export default function MySchedulePage() {
         }
 
         api.get(`/api/schedules/${week.id}/roster`)
-            .then(setRoster)
+            .then((data) => {
+                setRoster(data)
+                setError(null)
+            })
             .catch(() => setError('לא הצלחנו לטעון את הסידור'))
     }, [week])
 

@@ -222,6 +222,10 @@ function formatDate(iso) {
 }
 
 function messageFor(error) {
+    if (error.code === 'SHIFT_ASSIGNED') {
+        return 'העובד משובץ למשמרת באחד מהתאריכים האלה'
+    }
+
     if (error.status === 409) {
         return 'לעובד כבר רשומה היעדרות באחד מהתאריכים האלה'
     }

@@ -46,6 +46,7 @@ public class AuthController {
         return new CurrentUser(
                 jwt.getClaim("employeeId"),
                 jwt.getSubject(),
+                jwt.getClaim("fullName"),
                 jwt.getClaim("role")
         );
     }

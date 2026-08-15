@@ -17,7 +17,7 @@ public class ShiftType {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 40)
+    @Column(nullable = false, length = 40)
     private String name;
 
     @Column(name = "start_time", nullable = false)

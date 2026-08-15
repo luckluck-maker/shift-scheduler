@@ -5,7 +5,7 @@ export default function ProtectedRoute({ children, requireManager = false }) {
     const { user, loading, isManager } = useAuth()
 
     if (loading) {
-        return <p className="notice">Loading…</p>
+        return <p className="notice">טוען..</p>
     }
 
     if (!user) {

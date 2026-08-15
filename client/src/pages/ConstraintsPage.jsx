@@ -150,11 +150,11 @@ export default function ConstraintsPage() {
                 }
             }
 
-            await loadWeek(true)
         } catch (err) {
             setError(err.status === 409
                 ? 'תקופת הגשת האילוצים לשבוע זה נסגרה'
                 : 'השמירה נכשלה')
+            await loadWeek(true)
         } finally {
             setBusy(false)
         }
@@ -182,9 +182,9 @@ export default function ConstraintsPage() {
                 })
             }
 
-            await loadWeek(true)
         } catch {
             setError('שמירת הסיבה נכשלה')
+            await loadWeek(true)
         } finally {
             setBusy(false)
         }
@@ -200,10 +200,11 @@ export default function ConstraintsPage() {
 
     const overview = employeeId === ALL
 
-    // Disables edit in the all view constaints.
+    // Disables edit in the all view constraints.
     // if changes are required, manager can select the specific employee
     // and make the changes over there
-    const canEdit = !overview && (myWeek?.submissionOpen || isManager)
+    const editableStatus = myWeek?.status === 'COLLECTING' || myWeek?.status === 'DRAFT'
+    const canEdit = !overview && editableStatus && (myWeek?.submissionOpen || isManager)
 
     const byShift = new Map()
 

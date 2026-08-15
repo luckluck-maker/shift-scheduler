@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { ruleText, isBlocking, RULE_CONSEQUENCE } from '../i18n/rules'
+import Modal from './Modal'
 
 // Made possible only for single shift selection.
 
@@ -30,6 +31,7 @@ export default function AssignmentPanel({ shift, coverage, scheduleVersion, onCh
                 shiftId: shift.id,
                 employeeId: Number(chosen),
                 override,
+                scheduleVersion,
             })
 
             setPending(null)
@@ -154,30 +156,23 @@ function group(candidates) {
 
 function OverrideDialog({ violations, busy, onClose, onConfirm }) {
     return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-head">
-                    <h2>אישור שיבוץ</h2>
-                    <button className="icon-button" onClick={onClose}>×</button>
-                </div>
+        <Modal title="אישור שיבוץ" onClose={onClose}>
+            <ul className="warnings">
+                {violations.map((violation) => (
+                    <li key={violation.rule}>
+                        {ruleText(violation.rule)}
+                        {RULE_CONSEQUENCE[violation.rule] && (
+                            <span className="consequence">{RULE_CONSEQUENCE[violation.rule]}</span>
+                        )}
+                    </li>
+                ))}
+            </ul>
 
-                <ul className="warnings">
-                    {violations.map((violation) => (
-                        <li key={violation.rule}>
-                            {ruleText(violation.rule)}
-                            {RULE_CONSEQUENCE[violation.rule] && (
-                                <span className="consequence">{RULE_CONSEQUENCE[violation.rule]}</span>
-                            )}
-                        </li>
-                    ))}
-                </ul>
-
-                <div className="form-actions">
-                    <button type="button" className="link-button" onClick={onClose}>ביטול</button>
-                    <button onClick={onConfirm} disabled={busy}>שיבוץ בכל זאת</button>
-                </div>
+            <div className="form-actions">
+                <button type="button" className="link-button" onClick={onClose}>ביטול</button>
+                <button onClick={onConfirm} disabled={busy}>שיבוץ בכל זאת</button>
             </div>
-        </div>
+        </Modal>
     )
 }
 

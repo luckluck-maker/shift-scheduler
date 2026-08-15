@@ -6,6 +6,7 @@ import com.shiftscheduler.repository.EmployeeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -34,18 +35,13 @@ public class EmployeeMailer {
         this.from = from;
     }
 
-    @Transactional(readOnly = true)
     public void sendSchedulePublished(Schedule schedule) {
         String weekStart = schedule.getWeekStart().format(DATE);
         String weekEnd = schedule.getWeekStart().plusDays(6).format(DATE);
 
         int sent = 0;
 
-        for (Employee employee : employeeRepository.findAll()) {
-            if (!employee.isActive()) {
-                continue;
-            }
-
+        for (Employee employee : employeeRepository.findByActiveTrue(Sort.by("fullName"))) {
             if (send(employee, weekStart, weekEnd)) {
                 sent++;
             }
