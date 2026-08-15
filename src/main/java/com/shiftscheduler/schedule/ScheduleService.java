@@ -24,6 +24,7 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.shiftscheduler.notification.ScheduleNotifier;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -35,6 +36,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 
 @Service
 public class ScheduleService {
@@ -51,6 +55,8 @@ public class ScheduleService {
     private final ScheduleGuard guard;
     private final CurrentUserProvider currentUser;
     private final JmsTemplate jmsTemplate;
+    private final int closesDaysBefore;
+    private final LocalTime closesAtTime;
 
     public ScheduleService(ScheduleRepository scheduleRepository,
                            ShiftRepository shiftRepository,
@@ -60,7 +66,9 @@ public class ScheduleService {
                            ShiftPreferenceRepository preferenceRepository,
                            AssignmentRepository assignmentRepository,
                            ScheduleGuard guard,
-                           CurrentUserProvider currentUser, JmsTemplate jmsTemplate) {
+                           CurrentUserProvider currentUser, JmsTemplate jmsTemplate,
+                           @Value("${app.submission.closes-days-before}") int closesDaysBefore,
+                           @Value("${app.submission.closes-at-time}") LocalTime closesAtTime) {
         this.scheduleRepository = scheduleRepository;
         this.shiftRepository = shiftRepository;
         this.requirementRepository = requirementRepository;
@@ -71,6 +79,8 @@ public class ScheduleService {
         this.guard = guard;
         this.currentUser = currentUser;
         this.jmsTemplate = jmsTemplate;
+        this.closesDaysBefore = closesDaysBefore;
+        this.closesAtTime = closesAtTime;
     }
 
     @Transactional(readOnly = true)
@@ -219,7 +229,9 @@ public class ScheduleService {
         Schedule schedule = new Schedule();
         schedule.setWeekStart(weekStart);
         schedule.setStatus(ScheduleStatus.COLLECTING);
-        schedule.setSubmissionClosesAt(request.submissionClosesAt());
+        schedule.setSubmissionClosesAt(request.submissionClosesAt() != null
+                ? request.submissionClosesAt()
+                : defaultDeadlineFor(weekStart));
         scheduleRepository.save(schedule);
 
         buildWeek(schedule);
@@ -459,4 +471,16 @@ public class ScheduleService {
         guard.markChanged(schedule);
     }
 
+    // Constraints close independently a few days before the week starts, unless
+    // the manager asked for something else (set up in application).
+    // Weeks added for a closing date that has already past by gets null
+    // since otherwise it'll be closed immediately after.
+    private Instant defaultDeadlineFor(LocalDate weekStart) {
+        Instant closesAt = weekStart.minusDays(closesDaysBefore)
+                .atTime(closesAtTime)
+                .atZone(ZoneId.systemDefault())
+                .toInstant();
+
+        return closesAt.isAfter(Instant.now()) ? closesAt : null;
+    }
 }
