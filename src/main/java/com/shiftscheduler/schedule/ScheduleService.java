@@ -329,6 +329,11 @@ public class ScheduleService {
             for (ShiftRequirement original :
                     previous.getOrDefault(key(schedule.getWeekStart(), shift), List.of())) {
 
+                // copies only the active positions
+                if (!original.getJobPosition().isActive()) {
+                    continue;
+                }
+
                 copies.add(newRequirement(shift, original.getJobPosition(),
                         original.getRequiredCount(), original.isEssential()));
             }
