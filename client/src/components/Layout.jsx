@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
-// The frame every signed-in screen sits inside: the top bar and the menu.
+// The frame every signed-in screen sits inside: the side bar and the menu.
 // Outlet is where the routed page gets rendered.
 export default function Layout() {
     const { user, logout, isManager } = useAuth()
@@ -24,6 +24,7 @@ export default function Layout() {
         <div className="app">
             <header className="topbar">
                 <span className="brand">מסדרים ת'סידור</span>
+                <span className="brand-sub">ניהול משמרות</span>
 
                 <nav className="menu">
                     {links.map((link) => (
@@ -35,6 +36,7 @@ export default function Layout() {
 
                 <div className="topbar-end">
                     <span className="who">{user.fullName ?? user.username}</span>
+                    <span className="who-role">{isManager ? 'מנהל' : 'עובד'}</span>
                     <button className="link-button" onClick={logout}>יציאה</button>
                 </div>
             </header>

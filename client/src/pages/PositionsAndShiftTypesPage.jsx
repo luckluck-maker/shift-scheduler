@@ -79,60 +79,68 @@ export default function PositionsAndShiftTypesPage() {
 
             {error && <p className="error">{error}</p>}
 
-            <section className="section">
-                <div className="section-head">
-                    <h2>תפקידים</h2>
-                    <button onClick={() => setEditingPosition({ name: '' })}>הוספת תפקיד</button>
-                </div>
+            {/* The two lists sit side by side rather than one under the other. */}
+            <div className="two-columns">
+                <section className="section">
+                    <div className="section-head">
+                        <h2>תפקידים</h2>
+                        <button className="secondary" onClick={() => setEditingPosition({ name: '' })}>הוספת תפקיד</button>
+                    </div>
 
-                <table className="table">
-                    <tbody>
-                    {positions.map((position) => (
-                        <tr key={position.id}>
-                            <td>{position.name}</td>
-                            <td className="row-actions">
-                                <button className="link-button"
-                                        onClick={() => setEditingPosition(position)}>עריכה</button>
-                                <button className="link-button danger"
-                                        onClick={() => removePosition(position)}>מחיקה</button>
-                            </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </section>
+                    <table className="table">
+                        <tbody>
+                        {positions.map((position) => (
+                            <tr key={position.id}>
+                                <td>{position.name}</td>
+                                <td className="row-actions">
+                                    <button className="secondary"
+                                            onClick={() => setEditingPosition(position)}>עריכה</button>
+                                    <button className="danger"
+                                            onClick={() => removePosition(position)}>מחיקה</button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </section>
 
-            <section className="section">
-                <div className="section-head">
-                    <h2>סוגי משמרת</h2>
-                    <button onClick={() => setEditingShiftType({ name: '', startTime: '', endTime: '' })}>
-                        הוספת סוג משמרת
-                    </button>
-                </div>
+                <section className="section">
+                    <div className="section-head">
+                        <h2>סוגי משמרת</h2>
+                        <button className="secondary" onClick={() => setEditingShiftType({ name: '', startTime: '', endTime: '' })}>
+                            הוספת סוג משמרת
+                        </button>
+                    </div>
 
-                <table className="table">
-                    <tbody>
-                    {shiftTypes.map((shiftType) => (
-                        <tr key={shiftType.id}>
-                            <td>{shiftType.name}</td>
-                            <td className="cell-muted">
-                              <span className="time-range">
-                                {shiftType.startTime}–{shiftType.endTime}
-                              </span>
-                                <span className="tag-soft">{shiftType.durationHours} שעות</span>
-                                {shiftType.crossesMidnight && <span className="tag-soft">חוצה חצות</span>}
-                            </td>
-                            <td className="row-actions">
-                                <button className="link-button"
-                                        onClick={() => setEditingShiftType(shiftType)}>עריכה</button>
-                                <button className="link-button danger"
-                                        onClick={() => removeShiftType(shiftType)}>מחיקה</button>
-                            </td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-            </section>
+                    <table className="table">
+                        <tbody>
+                        {shiftTypes.map((shiftType) => (
+                            <tr key={shiftType.id}>
+                                <td>{shiftType.name}</td>
+                                <td className="cell-muted">
+                                  <span className="time-range">
+                                    {shiftType.startTime}–{shiftType.endTime}
+                                  </span>
+                                    <span className="tag-soft">{shiftType.durationHours} שעות</span>
+                                    {shiftType.crossesMidnight && <span className="tag-soft">חוצה חצות</span>}
+                                </td>
+                                <td className="row-actions">
+                                    <button className="secondary"
+                                            onClick={() => setEditingShiftType(shiftType)}>עריכה</button>
+                                    <button className="danger"
+                                            onClick={() => removeShiftType(shiftType)}>מחיקה</button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <p className="hint">
+                מחיקת סוג משמרת מוחקת את כל המשמרות שלו בסידורים שטרם פורסמו,
+                יחד עם השיבוצים שבהן. סידורים שכבר פורסמו לא ישתנו.
+            </p>
 
             {editingPosition && (
                 <PositionForm
@@ -191,7 +199,7 @@ function PositionForm({ position, onClose, onSaved }) {
             <form onSubmit={submit} className="form">
                 <Field label="שם התפקיד">
                     <input value={name} onChange={(e) => setName(e.target.value)}
-                           maxLength={60} required autoFocus />
+                           maxLength={25} required autoFocus />
                 </Field>
 
                 {error && <p className="error">{error}</p>}

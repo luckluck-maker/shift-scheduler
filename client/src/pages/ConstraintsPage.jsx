@@ -150,10 +150,14 @@ export default function ConstraintsPage() {
                 }
             }
 
+            await loadWeek(true)
         } catch (err) {
             setError(err.status === 409
                 ? 'תקופת הגשת האילוצים לשבוע זה נסגרה'
                 : 'השמירה נכשלה')
+
+            // Part of the loop may have gone through before it stopped, so the
+            // grid is reloaded either way.
             await loadWeek(true)
         } finally {
             setBusy(false)
@@ -182,6 +186,7 @@ export default function ConstraintsPage() {
                 })
             }
 
+            await loadWeek(true)
         } catch {
             setError('שמירת הסיבה נכשלה')
             await loadWeek(true)
@@ -218,27 +223,34 @@ export default function ConstraintsPage() {
         <>
             <div className="page-head">
                 <h1>אילוצים</h1>
-                {isManager && (
-                    <select value={employeeId}
-                            onChange={(e) => setEmployeeId(
-                                e.target.value === ALL ? ALL : Number(e.target.value))}>
-                        <option value={ALL}>כל העובדים</option>
-                        {employees.map((employee) => (
-                            <option key={employee.id} value={employee.id}>
-                                {employee.fullName}
-                            </option>
-                        ))}
-                    </select>
-                )}
             </div>
 
-            <WeekPicker weeks={weeks} current={week} onChange={setWeek}>
-                {myWeek && (
-                    <span className="tag-soft">
-            {myWeek.submissionOpen ? 'פתוח להגשה' : 'ההגשה נסגרה'}
-          </span>
+            {/* Whose week to look at belongs with the week controls, not in the
+                page heading - it picks what the grid below shows. */}
+            <div className="week-row">
+                <WeekPicker weeks={weeks} current={week} onChange={setWeek}>
+                    {myWeek && (
+                        <span className="week-status">
+                            {myWeek.submissionOpen ? 'פתוח להגשה' : 'ההגשה נסגרה'}
+                        </span>
+                    )}
+                </WeekPicker>
+
+                {isManager && (
+                    <div className="week-actions">
+                        <select value={employeeId}
+                                onChange={(e) => setEmployeeId(
+                                    e.target.value === ALL ? ALL : Number(e.target.value))}>
+                            <option value={ALL}>כל העובדים</option>
+                            {employees.map((employee) => (
+                                <option key={employee.id} value={employee.id}>
+                                    {employee.fullName}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 )}
-            </WeekPicker>
+            </div>
 
             {error && <p className="error">{error}</p>}
 
@@ -301,6 +313,11 @@ function SelectionPanel({ shifts, busy, onType, onReason }) {
         shiftsRef.current = shifts
     }, [reason, shifts])
 
+    const selectionKey = shifts.map((shift) => shift.shiftId).join()
+
+    // Saved when the selection goes away - either the panel closes or a
+    // different shift is picked. Keyed on the selection so moving from one
+    // shift to another writes the reason before the field is refilled.
     useEffect(() => {
         return () => {
             const current = reasonRef.current
@@ -310,13 +327,13 @@ function SelectionPanel({ shifts, busy, onType, onReason }) {
                 onReason(current.trim(), target)
             }
         }
-    }, [])
+    }, [selectionKey])
 
 
     // A new selection brings its own reason, so the field follows it.
     useEffect(() => {
         setReason(sharedReason(shifts))
-    }, [shifts.map((shift) => shift.shiftId).join()])
+    }, [selectionKey])
 
     const current = sharedType(shifts)
     const anyWithPreference = shifts.some((shift) => shift.preferenceId)

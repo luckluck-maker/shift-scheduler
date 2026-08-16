@@ -3,7 +3,6 @@ import { api } from '../api/client'
 import ShiftGrid from '../components/ShiftGrid'
 import WeekPicker from '../components/WeekPicker'
 import ShiftCell from '../components/ShiftCell'
-import Field from '../components/Field'
 import PublishDialog from '../components/PublishDialog'
 import AssignmentPanel from '../components/AssignmentPanel'
 
@@ -258,6 +257,10 @@ export default function ScheduleBuilderPage() {
     const byShiftId = new Map(coverage.map((entry) => [entry.shiftId, entry]))
     const collecting = detail?.status === 'COLLECTING'
     const isSolving = solving || detail?.status === 'SOLVING'
+    // The cards read straight off coverage, so they always agree with the grid
+    // underneath them.
+    const totals = summarise(coverage)
+
     const weekAssignedCount = coverage
         .reduce((n, entry) => n + entry.assignments.length, 0)
 
@@ -276,19 +279,23 @@ export default function ScheduleBuilderPage() {
             <div className="page-head">
                 <h1>בניית סידור</h1>
 
+                {/* Closing submissions comes first so the group grows to the
+                    right - the other two stay put when it appears. */}
                 <div className="head-actions">
                     {collecting && (
-                        <button onClick={lock} disabled={busy}>סגירת הגשת אילוצים</button>
-                    )}
-
-                    {detail?.status === 'DRAFT' && (
-                        <button onClick={() => setPublishing(true)}
-                                disabled={busy || isSolving}>פרסום</button>
+                        <button className="secondary" onClick={lock} disabled={busy}>
+                            סגירת הגשת אילוצים
+                        </button>
                     )}
 
                     <button className="secondary" onClick={createWeek} disabled={busy || isSolving}>
                         שבוע חדש
                     </button>
+
+                    {detail?.status === 'DRAFT' && (
+                        <button onClick={() => setPublishing(true)}
+                                disabled={busy || isSolving}>פרסום</button>
+                    )}
                 </div>
             </div>
 
@@ -296,6 +303,45 @@ export default function ScheduleBuilderPage() {
                 <p className="notice">אין עדיין שבועות. התחל בלחיצה על "שבוע חדש".</p>
             ) : (
                 <>
+                    {coverage.length > 0 && (
+                        <div className="summary">
+                            <div className="summary-card">
+                                <div className="summary-label">שיבוצים</div>
+                                <div className="summary-figure">
+                                    <span className="summary-number">{totals.filled}</span>
+                                    <span className="summary-note">מתוך {totals.required}</span>
+                                </div>
+                                <div className="summary-bar">
+                                    <span style={{ width: `${percent(totals.filled, totals.required)}%` }} />
+                                </div>
+                            </div>
+
+                            <div className="summary-card">
+                                <div className="summary-label">מקומות חסרים</div>
+                                <div className="summary-figure">
+                                    <span className="summary-number is-warn">{totals.missing}</span>
+                                    <span className="summary-note">ב־{totals.shiftsWithGaps} משמרות</span>
+                                </div>
+                                <div className="summary-bar">
+                                    <span className="is-warn"
+                                          style={{ width: `${percent(totals.missing, totals.required)}%` }} />
+                                </div>
+                            </div>
+
+                            <div className="summary-card is-critical">
+                                <div className="summary-label">תפקידים חיוניים ללא איוש</div>
+                                <div className="summary-figure">
+                                    <span className="summary-number is-critical">{totals.deserted}</span>
+                                    <span className="summary-note">ב־{totals.desertedShifts} משמרות</span>
+                                </div>
+                                <div className="summary-bar">
+                                    <span className="is-critical"
+                                          style={{ width: `${percent(totals.deserted, totals.required)}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="week-row">
                         <WeekPicker weeks={weeks} current={week} onChange={setWeek}>
                             <span className="week-status">{STATUS_LABELS[detail?.status] ?? ''}</span>
@@ -360,33 +406,54 @@ export default function ScheduleBuilderPage() {
                                 </button>
                             </div>
 
-                            {selected.size === 1 && detail.status !== 'COLLECTING' && !isSolving && (
-                                <AssignmentPanel
-                                    shift={selectedShifts[0]}
-                                    coverage={byShiftId.get(selectedShifts[0].id)}
-                                    scheduleVersion={detail.version}
-                                    onChanged={() => loadWeek(true)}
-                                    onError={setError}
-                                />
-                            )}
+                            {/* Who is on the shift on one side, what it needs on
+                                the other. Each side is wrapped because the panel
+                                renders more than one element, and the grid needs
+                                one child per column. */}
+                            <div className="panel-split">
+                                {selected.size === 1 && detail.status !== 'COLLECTING' && !isSolving && (
+                                    <div>
+                                        <AssignmentPanel
+                                            shift={selectedShifts[0]}
+                                            coverage={byShiftId.get(selectedShifts[0].id)}
+                                            scheduleVersion={detail.version}
+                                            onChanged={() => loadWeek(true)}
+                                            onError={setError}
+                                        />
+                                    </div>
+                                )}
 
-                            {detail.status !== 'PUBLISHED' && (
-                                <RequirementFields
-                                    shifts={selectedShifts}
-                                    positions={positions}
-                                    busy={busy || isSolving}
-                                    canClear={requirementCount > 0 && detail.status !== 'PUBLISHED'}
-                                    onApply={applyRequirements}
-                                    onClear={clearShiftRequirements}
-                                />
-                            )}
+                                {detail.status !== 'PUBLISHED' && (
+                                    <div>
+                                        <RequirementFields
+                                            shifts={selectedShifts}
+                                            positions={positions}
+                                            busy={busy || isSolving}
+                                            canClear={requirementCount > 0 && detail.status !== 'PUBLISHED'}
+                                            onApply={applyRequirements}
+                                            onClear={clearShiftRequirements}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
 
-                    {selected.size === 0 && detail?.status !== 'PUBLISHED' && (
-                        <p className="hint">בחר משמרת או גרור על כמה כדי לקבוע דרישות איוש.</p>
-                    )}
+                    {/* The key stays put; only the line about selecting is
+                        dropped on a published week, where there is nothing to
+                        select. */}
+                    <div className="legend">
+                        <span><i />מאויש</span>
+                        <span><i className="is-warn" />חסר חלק מהאיוש</span>
+                        <span><i className="is-critical" />תפקיד חיוני ללא איוש כלל</span>
+
+                        {detail?.status !== 'PUBLISHED' && (
+                            <span className="legend-keys">
+                                לחיצה בוחרת · גרירה בוחרת כמה · Esc מבטל
+                            </span>
+                        )}
+                    </div>
                 </>
             )}
             {publishing && (
@@ -439,18 +506,13 @@ function RequirementFields({ shifts, positions, busy, canClear, onApply, onClear
             <span className="field-label">דרישות איוש</span>
 
             <div className="requirement-fields">
+                {/* Not a Field: the name, the checkbox and the number are three
+                    separate items on one row, so the name can take the slack and
+                    the other two line up down the list whatever the name's
+                    length. */}
                 {positions.map((position) => (
                     <div key={position.id} className="requirement-field">
-                        <Field label={position.name}>
-                            <input
-                                type="number"
-                                min={0}
-                                max={50}
-                                value={values[position.id]?.count ?? ''}
-                                disabled={busy}
-                                onChange={(e) => set(position.id, { count: e.target.value })}
-                            />
-                        </Field>
+                        <span className="field-label" title={position.name}>{position.name}</span>
 
                         <label className="checkbox">
                             <input
@@ -461,6 +523,15 @@ function RequirementFields({ shifts, positions, busy, canClear, onApply, onClear
                             />
                             חיוני
                         </label>
+
+                        <input
+                            type="number"
+                            min={0}
+                            max={50}
+                            value={values[position.id]?.count ?? ''}
+                            disabled={busy}
+                            onChange={(e) => set(position.id, { count: e.target.value })}
+                        />
                     </div>
                 ))}
             </div>
@@ -543,23 +614,50 @@ function pause(millis) {
 }
 
 // Summary of the solver work - assigns and unassigned.
+// Counts both what the summary cards show and what the message after a solve
+// says. deserted counts one per shift-and-position pair, so it can be higher
+// than the number of shifts - the cards say "in N shifts" next to it.
 function summarise(coverage) {
     let filled = 0
+    let required = 0
     let missing = 0
     let deserted = 0
+    let shiftsWithGaps = 0
+    let desertedShifts = 0
 
     for (const shift of coverage) {
+        let hasGap = false
+        let hasDeserted = false
+
         for (const position of shift.positions) {
             filled += position.assigned
+            required += position.required
             missing += position.missing
+
+            if (position.missing > 0) {
+                hasGap = true
+            }
 
             if (position.essential && position.required > 0 && position.assigned === 0) {
                 deserted++
+                hasDeserted = true
             }
+        }
+
+        if (hasGap) {
+            shiftsWithGaps++
+        }
+
+        if (hasDeserted) {
+            desertedShifts++
         }
     }
 
-    return { filled, missing, deserted }
+    return { filled, required, missing, deserted, shiftsWithGaps, desertedShifts }
+}
+
+function percent(part, whole) {
+    return whole === 0 ? 0 : Math.round((part / whole) * 100)
 }
 
 function severity(result) {

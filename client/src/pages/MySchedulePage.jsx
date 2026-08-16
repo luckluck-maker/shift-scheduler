@@ -63,7 +63,7 @@ export default function MySchedulePage() {
                     weekStart={roster.weekStart}
                     renderCell={(shift) => (
                         shift.assignments.length === 0 ? (
-                            <div className="cell-off" />
+                            <div className="cell-empty" />
                         ) : (
                             <div className={shift.assignedToMe ? 'cell-mine' : ''}>
                                 {shift.assignments.map((person) => (

@@ -69,51 +69,63 @@ export default function EmployeesPage() {
         return <p className="notice">טוען…</p>
     }
 
+    const activeCount = employees.filter((employee) => employee.active).length
+
     return (
         <>
             <div className="page-head">
-                <h1>עובדים</h1>
+                <div>
+                    <h1>עובדים</h1>
+                    <p className="page-sub">
+                        {activeCount} פעיל{activeCount === 1 ? '' : 'ים'}
+                        {' · '}
+                        {employees.length - activeCount} מושבת{employees.length - activeCount === 1 ? '' : 'ים'}
+                    </p>
+                </div>
+
                 <button onClick={() => setEditing({ ...EMPTY })}>הוספת עובד</button>
             </div>
 
             {error && <p className="error">{error}</p>}
 
-            <table className="table">
-                <thead>
-                <tr>
-                    <th>שם</th>
-                    <th>דוא״ל</th>
-                    <th>תפקיד</th>
-                    <th>שעות שבועיות</th>
-                    <th>סטטוס</th>
-                    <th />
-                </tr>
-                </thead>
-                <tbody>
-                {employees.map((employee) => (
-                    <tr key={employee.id} className={employee.active ? '' : 'row-muted'}>
-                        <td>{employee.fullName}</td>
-                        <td className="ltr">{employee.username}</td>
-                        <td>{employee.jobPositionName}</td>
-                        <td>{employee.maxWeeklyHours}</td>
-                        <td>
-                            {employee.active ? 'פעיל' : 'מושבת'}
-                            {employee.role === 'MANAGER' && <span className="tag">מנהל</span>}
-                        </td>
-                        <td className="row-actions">
-                            <button className="link-button" onClick={() => setEditing(employee)}>
-                                עריכה
-                            </button>
-                            {employee.active && (
-                                <button className="link-button danger" onClick={() => deactivate(employee)}>
-                                    השבתה
-                                </button>
-                            )}
-                        </td>
+            <div className="table-scroll">
+                <table className="table">
+                    <thead>
+                    <tr>
+                        <th>שם</th>
+                        <th>דוא״ל</th>
+                        <th>תפקיד</th>
+                        <th>שעות שבועיות</th>
+                        <th>סטטוס</th>
+                        <th />
                     </tr>
-                ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    {employees.map((employee) => (
+                        <tr key={employee.id} className={employee.active ? '' : 'row-muted'}>
+                            <td>{employee.fullName}</td>
+                            <td className="ltr">{employee.username}</td>
+                            <td>{employee.jobPositionName}</td>
+                            <td className="ltr">{employee.maxWeeklyHours}</td>
+                            <td>
+                                {employee.active ? 'פעיל' : 'מושבת'}
+                                {employee.role === 'MANAGER' && <span className="tag">מנהל</span>}
+                            </td>
+                            <td className="row-actions">
+                                <button className="secondary" onClick={() => setEditing(employee)}>
+                                    עריכה
+                                </button>
+                                {employee.active && (
+                                    <button className="danger" onClick={() => deactivate(employee)}>
+                                        השבתה
+                                    </button>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
 
             {editing && (
                 <EmployeeForm

@@ -57,8 +57,6 @@ export default function ShiftCell({ coverage, collecting }) {
 const MAX_NAMES = 3
 
 function PositionSlots({ position, people, showLabel }) {
-    const empty = Math.max(0, position.required - people.length)
-
     // Beyond the shift requirement for the position - either the
     // manager assigned over the requirement, or lowered it afterward.
     const needed = Math.min(people.length, position.required)
@@ -72,11 +70,26 @@ function PositionSlots({ position, people, showLabel }) {
         && people.length === 0
         && position.required > 0
 
+    const short = !deserted && people.length < position.required
+
+    // The one inline style in the app. It's a data value, not a design one -
+    // how full the bar is comes from the numbers, so it can't live in the CSS.
+    const percent = position.required === 0
+        ? 100
+        : Math.round((needed / position.required) * 100)
+
     return (
-        <div className={deserted ? 'slot-group is-deserted' : 'slot-group'}>
+        <div className={'slot-group'
+            + (deserted ? ' is-deserted' : '')
+            + (short ? ' is-short' : '')}>
+
             <div className="slot-position">
                 <span>{position.jobPositionName}</span>
                 <span className="slot-count">{people.length}/{position.required}</span>
+            </div>
+
+            <div className="slot-meter">
+                <span style={{ width: `${percent}%` }} />
             </div>
 
             <div className="slot-rows">
@@ -89,10 +102,6 @@ function PositionSlots({ position, people, showLabel }) {
                 ))}
 
                 {hidden > 0 && <div className="slot slot-more">+{hidden}</div>}
-
-                {Array.from({ length: empty }, (unused, index) => (
-                    <div key={index} className="slot slot-empty" />
-                ))}
             </div>
         </div>
     )

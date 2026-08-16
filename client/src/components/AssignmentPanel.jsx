@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import { ruleText, isBlocking, RULE_CONSEQUENCE } from '../i18n/rules'
+import { ruleText, isBlocking, RULE_CONSEQUENCE } from '../i18n/Rules.js'
 import Modal from './Modal'
 
 // Made possible only for single shift selection.

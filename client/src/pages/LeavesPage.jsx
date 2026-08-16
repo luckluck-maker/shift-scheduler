@@ -78,38 +78,40 @@ export default function LeavesPage() {
             {leaves.length === 0 ? (
                 <p className="notice">אין היעדרויות רשומות.</p>
             ) : (
-                <table className="table">
-                    <thead>
-                    <tr>
-                        <th>עובד</th>
-                        <th>תאריכים</th>
-                        <th>סוג</th>
-                        <th />
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {leaves.map((leave) => (
-                        <tr key={`${leave.employeeId}-${leave.startDate}`}>
-                            <td>{leave.employeeName}</td>
-                            <td className="cell-muted">
-                  <span className="time-range">
-                    {formatDate(leave.startDate)}
-                      {leave.days > 1 && ` – ${formatDate(leave.endDate)}`}
-                  </span>
-                                <span className="tag-soft">
-                    {leave.days === 1 ? 'יום אחד' : `${leave.days} ימים`}
-                  </span>
-                            </td>
-                            <td>{TYPES[leave.type] ?? leave.type}</td>
-                            <td className="row-actions">
-                                <button className="link-button danger" onClick={() => remove(leave)}>
-                                    מחיקה
-                                </button>
-                            </td>
+                <div className="table-scroll">
+                    <table className="table">
+                        <thead>
+                        <tr>
+                            <th>עובד</th>
+                            <th>תאריכים</th>
+                            <th>סוג</th>
+                            <th />
                         </tr>
-                    ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                        {leaves.map((leave) => (
+                            <tr key={`${leave.employeeId}-${leave.startDate}`}>
+                                <td>{leave.employeeName}</td>
+                                <td className="cell-muted">
+                      <span className="time-range">
+                        {formatDate(leave.startDate)}
+                          {leave.days > 1 && ` – ${formatDate(leave.endDate)}`}
+                      </span>
+                                    <span className="tag-soft">
+                        {leave.days === 1 ? 'יום אחד' : `${leave.days} ימים`}
+                      </span>
+                                </td>
+                                <td>{TYPES[leave.type] ?? leave.type}</td>
+                                <td className="row-actions">
+                                    <button className="danger" onClick={() => remove(leave)}>
+                                        מחיקה
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             {adding && (

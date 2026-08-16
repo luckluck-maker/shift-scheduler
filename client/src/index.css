@@ -1,19 +1,76 @@
+/* ============================================================================
+   מסדרים ת'סידור — index.css
+   Full replacement for client/src/index.css.
+
+   Every class name that exists in the current file is kept, so most components
+   need no JSX change at all. Classes added by this design are grouped at the
+   bottom of each section and marked NEW; the four components that need markup
+   changes are listed in handoff/MIGRATION.md.
+   ========================================================================= */
+
 :root {
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --border: #d8dce3;
-  --text: #1c2530;
-  --muted: #6b7683;
-  --accent: #2f6f8f;
-  --danger: #b23b3b;
+  /* ---- surfaces: a lightness ladder, not a set of borders ---- */
+  --canvas: oklch(0.17 0.012 240);
+  --sidebar: oklch(0.145 0.012 240);
+  --surface: oklch(0.225 0.013 240);
+  --surface-raised: oklch(0.255 0.013 240);
+  --surface-sunken: oklch(0.205 0.013 240);
+  --surface-input: oklch(0.20 0.013 240);
+  --line: oklch(0.285 0.014 240);
+  --line-strong: oklch(0.33 0.014 240);
+  --track: oklch(0.32 0.014 240);
+
+  /* ---- text ---- */
+  --text: oklch(0.94 0.006 240);
+  --text-strong: oklch(0.98 0.006 240);
+  --muted: oklch(0.80 0.010 240);
+  --muted-weak: oklch(0.74 0.010 240);
+  --disabled: oklch(0.62 0.012 240);
+
+  /* ---- identity: the app, the current user, focus. NOT coverage. ---- */
+  --accent: oklch(0.78 0.13 190);
+  --accent-solid: oklch(0.74 0.13 190);
+  --accent-ink: oklch(0.17 0.03 200);
+  --accent-soft: oklch(0.245 0.03 200);
+  --accent-soft-text: oklch(0.86 0.11 190);
+
+  /* ---- coverage / status. Colour marks a problem; covered stays quiet. ---- */
+  --covered: oklch(0.64 0.10 165);
+  --warn: oklch(0.82 0.14 75);
+  --warn-soft: oklch(0.245 0.032 75);
+  --warn-text: oklch(0.88 0.11 75);
+  --danger: oklch(0.70 0.19 25);
+  --danger-dim: oklch(0.50 0.13 25);
+  --danger-soft: oklch(0.245 0.045 25);
+  --danger-text: oklch(0.88 0.09 25);
+  --danger-line: oklch(0.40 0.09 25);
+
+  /* ---- primary action: the one light-filled button on a dark screen ---- */
+  --primary-bg: oklch(0.95 0.005 240);
+  --primary-bg-hover: oklch(1 0 0);
+  --primary-ink: oklch(0.18 0.012 240);
 
   --space-sm: 0.5rem;
   --space-md: 1rem;
   --space-lg: 1.5rem;
-  --radius: 8px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
 
-  font-family: Rubik, system-ui, sans-serif;
+  font-family: 'IBM Plex Sans Hebrew', system-ui, sans-serif;
   color: var(--text);
+  font-variant-numeric: tabular-nums;
+
+  /* Tells the browser to draw its own controls dark - the number spinner and
+     the time and date pickers come out white otherwise. */
+  color-scheme: dark;
+}
+
+/* Numbers, dates, times and ratios only. Never Hebrew labels — Hebrew has no
+   tracking convention and monospaced Hebrew reads as detached glyphs. */
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 * {
@@ -22,7 +79,16 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--canvas);
+}
+
+a {
+  color: var(--accent-soft-text);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent);
 }
 
 /* ----- login ----- */
@@ -31,16 +97,17 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 1.5rem;
+  padding: 3rem 1.5rem;
+  background: oklch(0.245 0.014 240);
 }
 
 .login-card {
   width: 100%;
-  max-width: 22rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 2rem;
+  max-width: 21.5rem;
+  background: oklch(0.295 0.015 240);
+  border: none;
+  border-radius: var(--radius);
+  padding: 1.6rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -48,361 +115,193 @@ body {
 
 .login-card h1 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  margin: 0 0 1.2rem;
+  margin: 0.35rem 0 1.25rem;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
-/* ----- frame ----- */
+/* ----- frame -----
+   The top bar became a fixed sidebar. .topbar / .menu / .menu-link keep their
+   names so Layout.jsx only changes structurally, not in its class strings. */
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
 
 .topbar {
+  width: 230px;
+  flex: none;
+  background: var(--sidebar);
   display: flex;
-  align-items: center;
-  gap: 2rem;
-  padding: 0 1.5rem;
-  height: 3.5rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  padding: 1.4rem 0 1.1rem;
+  height: auto;
+  border-bottom: none;
 }
 
 .brand {
+  padding: 0 1.15rem;
+  font-size: 0.97rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.brand-sub { /* NEW */
+  padding: 0 1.15rem;
+  margin-top: 0.3rem;
+  margin-bottom: 1.6rem;
+  font-size: 0.72rem;
   font-weight: 600;
+  color: var(--muted-weak);
 }
 
 .menu {
   display: flex;
-  gap: 1.2rem;
-  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 0.6rem;
+  flex: none;
 }
 
 .menu-link {
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.92rem;
-  padding: 0.3rem 0;
-  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.62rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.845rem;
+  color: oklch(0.84 0.010 240);
+  border-bottom: none;
+}
+
+/* The marker rides on the link so an inactive item shows nothing at all. */
+.menu-link::before {
+  content: '';
+  width: 3px;
+  height: 15px;
+  border-radius: 2px;
+  background: transparent;
+  flex: none;
+}
+
+.menu-link:hover {
+  background: oklch(0.225 0.014 240);
+  color: var(--text-strong);
 }
 
 .menu-link.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
+  color: var(--text-strong);
+  background: oklch(0.26 0.016 240);
+  font-weight: 600;
+}
+
+.menu-link.active::before {
+  background: var(--accent);
 }
 
 .topbar-end {
+  margin: auto 0.6rem 0;
+  padding: 0.8rem;
+  border-radius: 9px;
+  background: var(--surface-sunken);
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: 0.9rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  font-size: 0.83rem;
 }
 
 .who {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.845rem;
+}
+
+.who-role { /* NEW */
   color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .content {
-  max-width: 70rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 1.6rem 1.9rem 2.75rem;
 }
 
 .page-head {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .page-head h1 {
-  font-size: 1.3rem;
+  font-size: 1.56rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   margin: 0;
+}
+
+.page-sub { /* NEW */
+  margin: 0.35rem 0 0;
+  font-size: 0.81rem;
+  color: var(--muted);
 }
 
 /* ----- table ----- */
 
+/* The card scrolls rather than clips: the row's last cell holds a destructive
+   action, and it must never silently disappear on a narrow window. */
 .table {
   width: 100%;
-  border-collapse: collapse;
+  min-width: 40rem;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  font-size: 0.92rem;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.845rem;
+  display: table;
+}
+
+.table-scroll { /* NEW — wrap every .table in this */
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow-x: auto;
 }
 
 .table th {
   text-align: right;
   font-weight: 600;
   color: var(--muted);
-  padding: 0.7rem 1rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.85rem;
-}
-
-.table td {
-  padding: 0.7rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.table tr:last-child td {
+  padding: 0.75rem 1.1rem;
+  background: var(--surface-raised);
   border-bottom: none;
-}
-
-.row-muted {
-  color: var(--muted);
-}
-
-.row-actions {
-  display: flex;
-  gap: 0.8rem;
-}
-
-.tag {
-  display: inline-block;
-  background: var(--accent);
-  color: #fff;
   font-size: 0.72rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  margin-right: 0.4rem;
-}
-
-/* ----- forms ----- */
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.field-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.field-error {
-  font-size: 0.8rem;
-  color: var(--danger);
-}
-
-.checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.92rem;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-start;
-  gap: 1rem;
-  align-items: center;
-  margin-top: 0.6rem;
-}
-
-input, select {
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.95rem;
-  background: var(--surface);
-  color: var(--text);
-  font-family: inherit;
-}
-
-input[type="email"],
-input[type="password"],
-input[type="number"],
-input[type="time"] {
-  direction: ltr;
-  text-align: right;
-}
-
-.ltr {
-  direction: ltr;
-  text-align: right;
-}
-
-input:focus-visible,
-select:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.92rem;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.link-button {
-  padding: 0;
-  background: none;
-  color: var(--accent);
-  text-decoration: underline;
-}
-
-.link-button.danger {
-  color: var(--danger);
-}
-
-.icon-button {
-  padding: 0;
-  background: none;
-  color: var(--muted);
-  font-size: 1.4rem;
-  line-height: 1;
-}
-
-/* ----- modal ----- */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(28, 37, 48, 0.4);
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-}
-
-.modal {
-  background: var(--surface);
-  border-radius: 10px;
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 26rem;
-}
-
-.modal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.2rem;
-}
-
-.modal-head h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-/* ----- misc ----- */
-
-.error {
-  margin: 0.8rem 0 0;
-  color: var(--danger);
-  font-size: 0.88rem;
-}
-
-.notice {
-  padding: 2rem;
-  color: var(--muted);
-}
-
-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.login-card label {
-  margin-top: 0.6rem;
-}
-
-.login-card button {
-  margin-top: 1.4rem;
-  padding: 0.65rem;
-  font-size: 1rem;
-}
-
-/* ----- sections, for screens with more than one list ----- */
-
-.section {
-  margin-bottom: 2rem;
-}
-
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.8rem;
-}
-
-.section-head h2 {
-  font-size: 1.05rem;
-  margin: 0;
-}
-
-.cell-muted {
-  color: var(--muted);
-}
-
-/* A quieter tag than .tag, for facts rather than status */
-.tag-soft {
-  display: inline-block;
-  background: var(--bg);
-  color: var(--muted);
-  font-size: 0.75rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  margin-right: 0.5rem;
-}
-
-/* Two fields side by side, like a start and end time */
-.field-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.field-row .field {
-  flex: 1;
-}
-
-.hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.time-range {
-  display: inline-block;
-  direction: ltr;
-}
-
-.table td:last-child {
-  width: 1%;
-  white-space: nowrap;
 }
 
 .table td {
-  padding: 0.7rem 1rem;
+  padding: 0.8rem 1.1rem;
   border-bottom: none;
+  border-top: 1px solid var(--line);
 }
 
 .table tbody tr {
-  border-bottom: 1px solid var(--border);
+  border-bottom: none;
 }
 
-.table tbody tr:last-child {
-  border-bottom: none;
+.table td:first-child {
+  font-weight: 600;
 }
 
 .table td:last-child {
@@ -411,19 +310,422 @@ label {
   text-align: left;
 }
 
-/* ----- week picker ----- */
+.row-muted td {
+  color: var(--disabled);
+}
 
-.week-status {
-  font-size: 0.95rem;
+/* Left as an ordinary table cell. Making it a flex container took it out of
+   the table's own sizing, so the column stopped matching its header and the
+   buttons drifted in from the edge. The buttons line up on their own, and the
+   cell hugs the left edge so they sit under the add button in the header. */
+.table td.row-actions {
+  white-space: nowrap;
+  text-align: left;
+}
+
+.row-actions > button + button {
+  margin-inline-start: 0.5rem;
+}
+
+.tag {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.12rem 0.5rem;
+  border-radius: 5px;
+  margin-right: 0.5rem;
+}
+
+/* A quieter tag than .tag, for facts rather than status */
+.tag-soft {
+  display: inline-block;
+  background: oklch(0.29 0.014 240);
+  color: oklch(0.84 0.010 240);
+  font-size: 0.72rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 5px;
+  margin-right: 0.5rem;
+}
+
+/* ----- forms ----- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--muted);
 }
+
+.field-error {
+  font-size: 0.78rem;
+  color: var(--danger-text);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.checkbox input {
+  accent-color: var(--accent-solid);
+  margin: 0;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+input, select {
+  padding: 0.62rem 0.75rem;
+  border: 1px solid oklch(0.38 0.015 240);
+  border-radius: var(--radius-sm);
+  font-size: 0.845rem;
+  background: var(--surface-input);
+  color: var(--text);
+  font-family: inherit;
+}
+
+input::placeholder {
+  color: oklch(0.66 0.012 240);
+}
+
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="time"],
+input[type="date"] {
+  direction: ltr;
+  text-align: right;
+}
+
+input[type="number"] {
+  font-family: 'IBM Plex Mono', monospace;
+  text-align: center;
+}
+
+.ltr {
+  direction: ltr;
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 3px solid oklch(0.74 0.13 190 / 0.2);
+  outline-offset: 0;
+  border-color: var(--accent-solid);
+}
+
+/* The single light-filled button. One terminal action per screen. */
+button {
+  padding: 0.56rem 1.1rem;
+  border: none;
+  border-radius: 7px;
+  background: var(--primary-bg);
+  color: var(--primary-ink);
+  font-size: 0.81rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--primary-bg-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Neutral outline: ordinary secondary actions (שבוע חדש, סגירת הגשת אילוצים). */
+button.secondary {
+  background: transparent;
+  color: oklch(0.91 0.008 240);
+  border: 1px solid var(--line-strong);
+  font-weight: 400;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: oklch(0.245 0.014 240);
+}
+
+/* Destructive, outlined — never filled. */
+button.danger {
+  background: transparent;
+  color: oklch(0.82 0.13 25);
+  border: 1px solid var(--danger-line);
+  font-weight: 400;
+}
+
+button.danger:hover:not(:disabled) {
+  background: oklch(0.28 0.06 25);
+}
+
+/* The solver: a machine action, so it carries the identity colour. */
+.solve-button {
+  background: var(--accent-solid);
+  color: var(--accent-ink);
+}
+
+.solve-button:hover:not(:disabled) {
+  background: oklch(0.82 0.12 190);
+}
+
+.link-button {
+  padding: 0;
+  background: none;
+  color: var(--accent-soft-text);
+  text-decoration: none;
+  font-weight: 400;
+  font-size: 0.81rem;
+}
+
+.link-button:hover:not(:disabled) {
+  background: none;
+  color: var(--accent);
+}
+
+.link-button.danger {
+  border: none;
+  color: oklch(0.82 0.13 25);
+}
+
+.link-button.danger:hover:not(:disabled) {
+  background: none;
+}
+
+.icon-button {
+  padding: 0.42rem 0.8rem;
+  background: none;
+  color: oklch(0.90 0.008 240);
+  font-size: 0.94rem;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: oklch(0.28 0.014 240);
+}
+
+.icon-button:disabled {
+  color: oklch(0.44 0.012 240);
+  opacity: 1;
+}
+
+/* ----- modal ----- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0.12 0.01 240 / 0.66);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.modal {
+  background: oklch(0.245 0.014 240);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  width: 100%;
+  max-width: 25rem;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 0.97rem;
+  font-weight: 700;
+}
+
+.modal-head .icon-button {
+  padding: 0 0.25rem;
+  font-size: 1.2rem;
+  color: var(--muted);
+}
+
+/* ----- misc ----- */
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: 9px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: 0.845rem;
+}
+
+.error::before {
+  content: '';
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: var(--danger);
+  flex: none;
+}
+
+.notice {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 2.1rem 1.5rem;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.845rem;
+}
+
+label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.login-card label {
+  margin-top: 0.6rem;
+}
+
+.login-card input {
+  border-color: oklch(0.44 0.016 240);
+  background: oklch(0.26 0.014 240);
+  font-size: 0.94rem;
+  padding: 0.68rem 0.8rem;
+}
+
+.login-card button {
+  margin-top: 1.4rem;
+  padding: 0.8rem;
+  font-size: 0.94rem;
+}
+
+/* ----- sections ----- */
+
+.section {
+  margin-bottom: 1rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--surface-raised);
+  margin-bottom: 0;
+}
+
+.section-head h2 {
+  font-size: 0.91rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.section .table {
+  border-radius: 0;
+  min-width: 0;
+}
+
+/* A section is one card: rounded outside, square where the two meet. */
+.section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Two lists side by side. The shift types get the wider column - each row
+   carries times and tags on top of the name. */
+.two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.two-columns .section {
+  margin-bottom: 0;
+}
+
+.cell-muted {
+  color: var(--muted);
+}
+
+.field-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted-weak);
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.hint-quiet {
+  color: var(--muted-weak);
+  font-size: 0.78rem;
+}
+
+.time-range {
+  display: inline-block;
+  direction: ltr;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  color: oklch(0.84 0.010 240);
+}
+
+/* ----- week picker ----- */
 
 .week-picker {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.8rem;
-  margin-bottom: 1.2rem;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 0;
+}
+
+/* NEW — the arrows and the label are one control, not three loose items. */
+.week-nav {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .week-label {
@@ -432,17 +734,137 @@ label {
   justify-content: center;
   gap: 0.6rem;
   direction: ltr;
-  width: 18rem;
+  width: auto;
+  padding: 0.42rem 0.9rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.81rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
 }
 
-.week-picker .icon-button {
-  font-size: 1.6rem;
-  padding: 0 0.4rem;
+.week-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
-.week-picker .icon-button:disabled {
-  opacity: 0.3;
-  cursor: default;
+.week-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Used on its own on the employee's schedule, where there is no week-row to
+   carry the spacing. */
+.content > .week-picker {
+  margin-bottom: 0.75rem;
+}
+
+.week-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+/* No longer absolutely positioned — the row is a flex layout, so a button
+   appearing or disappearing cannot change the row's height. */
+.week-actions {
+  position: static;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ----- summary cards (NEW) -----
+   Values must be derived from the coverage response, never hardcoded. */
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.summary-card {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 0.9rem 1.05rem;
+}
+
+.summary-card.is-critical {
+  background: oklch(0.235 0.035 25);
+}
+
+.summary-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.is-critical .summary-label {
+  color: oklch(0.82 0.10 25);
+}
+
+.summary-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin-top: 0.42rem;
+  flex-wrap: nowrap;
+}
+
+.summary-number {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.summary-number.is-warn {
+  color: var(--warn);
+}
+
+.summary-number.is-critical {
+  color: oklch(0.76 0.18 25);
+}
+
+.summary-note {
+  font-size: 0.81rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.summary-bar {
+  height: 4px;
+  border-radius: 3px;
+  background: oklch(0.30 0.014 240);
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+
+.summary-bar > span {
+  display: block;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--covered);
+}
+
+.summary-bar > span.is-warn {
+  background: var(--warn);
+}
+
+.summary-bar > span.is-critical {
+  background: var(--danger);
 }
 
 /* ----- weekly grid ----- */
@@ -452,22 +874,29 @@ label {
   border-collapse: separate;
   border-spacing: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
   overflow: hidden;
   table-layout: fixed;
 }
 
 .grid th {
-  background: var(--bg);
-  font-weight: 500;
-  font-size: 0.85rem;
-  padding: 0.6rem 0.4rem;
-  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  font-weight: 600;
+  font-size: 0.845rem;
+  padding: 0.75rem 0.5rem;
+  border-bottom: none;
+}
+
+/* One uniform rule between day columns. No weekend tint, no heavier divider —
+   both were tried and read as a mistake. */
+.grid thead th + th,
+.grid tbody td {
+  border-inline-start: 1px solid var(--line);
 }
 
 .grid-corner {
-  width: 7rem;
+  width: 116px;
 }
 
 .grid-day {
@@ -476,15 +905,21 @@ label {
 
 .grid-date {
   display: block;
-  color: var(--muted);
-  font-size: 0.75rem;
+  color: oklch(0.76 0.010 240);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
   font-weight: 400;
+  margin-top: 2px;
+  direction: ltr;
 }
 
 .grid-row-head {
   text-align: right;
-  padding-right: 0.8rem !important;
-  border-left: 1px solid var(--border);
+  padding: 0.75rem 0.95rem !important;
+  background: oklch(0.245 0.013 240);
+  border-inline-start: none;
+  border-top: 1px solid oklch(0.29 0.014 240);
+  vertical-align: top;
 }
 
 .grid-shift-name {
@@ -493,50 +928,59 @@ label {
 
 .grid-shift-time {
   display: block;
-  color: var(--muted);
+  color: oklch(0.76 0.010 240);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 0.72rem;
   font-weight: 400;
   direction: ltr;
+  margin-top: 3px;
 }
 
 .grid-cell {
-  border-bottom: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  padding: 0.4rem;
-  vertical-align: middle;
-  height: 4rem;
-  font-size: 0.85rem;
-}
-
-.grid tbody tr:last-child .grid-cell,
-.grid tbody tr:last-child .grid-row-head {
   border-bottom: none;
+  border-top: 1px solid oklch(0.29 0.014 240);
+  padding: 0.56rem;
+  vertical-align: top;
+  height: auto;
+  font-size: 0.81rem;
 }
 
 .grid-cell:last-of-type {
-  border-left: none;
+  border-inline-end: none;
 }
 
 /* ----- roster cells ----- */
 
 .person {
-  padding: 0.2rem 0.4rem;
+  padding: 0.12rem 0;
+  font-size: 0.81rem;
+  font-weight: 500;
 }
 
 .person-me {
-  font-weight: 600;
-  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: oklch(0.15 0.03 200);
 }
 
+/* The whole cell is filled, and the label the old design needed is gone —
+   the employee's own name is emphasised instead. */
 .cell-mine {
-  background: #eef4f8;
-  border-radius: 4px;
-  margin: -0.2rem;
-  padding: 0.2rem;
+  margin: 0;
+  padding: 0;
 }
 
-.cell-empty {
-  color: var(--border);
+.grid-cell:has(.cell-mine) {
+  background: var(--accent);
+}
+
+.grid-cell:has(.cell-mine) .person {
+  color: oklch(0.30 0.05 200);
+}
+
+.cell-empty,
+.slot-none {
+  color: oklch(0.48 0.012 240);
 }
 
 /* ----- selection ----- */
@@ -549,42 +993,53 @@ label {
   cursor: pointer;
 }
 
+.grid-selectable .grid-cell:hover {
+  background: oklch(0.275 0.018 200);
+}
+
 .grid-cell.is-selected {
   box-shadow: inset 0 0 0 2px var(--accent);
+  background: oklch(0.255 0.025 200);
 }
 
 .grid-cell-none {
-  background: var(--bg);
+  background: oklch(0.212 0.013 240);
 }
 
-/* ----- constraint cells ----- */
+/* ----- constraint cells -----
+   Constraints reuse the coverage amber and red: both mean "a problem here". */
 
 .pref {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
-  min-height: 2.5rem;
-  padding: 0.3rem;
-  border-radius: 4px;
+  min-height: 3.2rem;
+  padding: 0.4rem 0.25rem;
+  border-radius: 7px;
   flex-direction: column;
+  gap: 2px;
+  font-size: 0.81rem;
+  color: var(--muted-weak);
 }
 
 .pref-PREFERS_NOT {
-  background: #fdf3e3;
-  color: #8a6116;
+  background: oklch(0.255 0.032 75);
+  color: var(--warn-text);
+  font-weight: 600;
 }
 
 .pref-CANNOT {
-  background: #fbeaea;
-  color: var(--danger);
+  background: oklch(0.255 0.045 25);
+  color: oklch(0.84 0.13 25);
+  font-weight: 600;
 }
 
 .pref-reason {
   display: block;
-  font-size: 0.7rem;
-  opacity: 0.8;
-  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  opacity: 0.85;
+  text-align: center;
 }
 
 /* ----- constraints overview ----- */
@@ -592,39 +1047,31 @@ label {
 .constraint-list {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.25rem;
   font-size: 0.78rem;
 }
 
 .constraint {
-  padding: 0.15rem 0.3rem;
-  border-radius: 3px;
+  padding: 0.31rem 0.5rem;
+  border-radius: 6px;
 }
 
 .constraint-CANNOT {
-  background: #fbeaea;
-  color: var(--danger);
+  background: oklch(0.255 0.045 25);
+  color: oklch(0.84 0.13 25);
 }
 
-
 .constraint-PREFERS_NOT {
-  background: #fdf3e3;
-  color: #8a6116;
+  background: oklch(0.255 0.032 75);
+  color: var(--warn-text);
 }
 
 .constraint-name {
   display: block;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
-.constraint-reason {
-  display: block;
-  font-size: 0.7rem;
-  opacity: 0.8;
-}
-
-/* Long reasons would stretch the row - two lines is enough to recognise one,
-   and hovering shows the rest. */
 .constraint-reason,
 .pref-reason {
   display: -webkit-box;
@@ -632,169 +1079,263 @@ label {
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   opacity: 0.8;
 }
 
 /* ----- selection panel ----- */
 
 .panel {
-  margin-top: 1.2rem;
-  padding: 1rem 1.2rem;
+  margin-top: 1rem;
+  padding: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.9rem;
-  font-size: 0.95rem;
+  gap: 1rem;
+  padding: 0.95rem 1.1rem;
+  margin-bottom: 0;
+  background: var(--surface-raised);
+  font-size: 0.94rem;
+}
+
+/* Who is on the shift on one side, what the shift needs on the other. The
+   assignment side is a little wider because it holds the names. */
+.panel-split {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+}
+
+.panel-split > * {
+  padding: 1.1rem;
+  min-width: 0;
+}
+
+/* On a collecting week there is no assignment side, and on a published one no
+   requirements side. Whichever is left takes the full width. */
+.panel-split:has(> :only-child) {
+  grid-template-columns: 1fr;
 }
 
 .panel-choices {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
+  padding: 1.1rem 1.1rem 0;
 }
 
 .choice {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  font-size: 0.88rem;
+  background: transparent;
+  color: oklch(0.91 0.008 240);
+  border: 1px solid var(--line-strong);
+  font-size: 0.845rem;
+  font-weight: 400;
+  padding: 0.62rem 1.25rem;
 }
 
+.choice:hover:not(:disabled) {
+  background: oklch(0.26 0.014 240);
+}
+
+/* The chosen constraint carries its own severity colour. */
 .choice.is-current {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: oklch(0.30 0.016 240);
+  border-color: transparent;
+  color: var(--text-strong);
+  font-weight: 600;
 }
 
 .panel-reason {
   display: block;
-  margin-top: 0.9rem;
+  padding: 0.85rem 1.1rem 1.1rem;
 }
 
 .panel-reason input {
   width: 100%;
-  margin-top: 0.3rem;
+  max-width: 26rem;
+  margin-top: 0.35rem;
+  border-color: oklch(0.36 0.015 240);
 }
 
-/* ----- manager's grid cell ----- */
+/* ----- manager's grid cell -----
+   The coverage bar replaces the stack of slot rows. Every position shows a
+   label, a ratio and one bar; nothing repeats the same fact twice. */
 
 .slots {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  font-size: 0.78rem;
+  gap: 0.7rem;
+  font-size: 0.81rem;
 }
 
 .slot-group {
-  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.31rem;
 }
 
 .slot-group + .slot-group {
-  margin-top: 0.1rem;
+  margin-top: 0;
 }
 
 .slot-position {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.65rem;
-  color: #9aa3ac;
-  padding: 0.1rem 0.25rem 0.1rem;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0;
+}
+
+/* A long job title would otherwise widen the column and push the ratio out of
+   line with the cells above it. */
+.slot-position > span:first-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .slot-count {
   direction: ltr;
+  margin-inline-start: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: oklch(0.86 0.010 240);
 }
 
-.slot-group.is-deserted .slot-empty {
-  background: repeating-linear-gradient(
-          45deg, #fdeaea, #fdeaea 4px, #f7c8c8 4px, #f7c8c8 8px);
+.slot-group.is-short .slot-count {
+  color: var(--warn);
 }
 
-.slot {
-  padding: 0.1rem 0.25rem;
-  background: none;
+.slot-group.is-deserted .slot-count {
+  color: var(--danger);
 }
 
-/* The background belongs to the position as a whole, not to each name in it.
-   The label sits outside. */
+/* NEW — the meter. Width is set inline from assigned / required. */
+.slot-meter {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.slot-meter > span {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--covered);
+}
+
+.slot-group.is-short .slot-meter > span {
+  background: var(--warn);
+}
+
+/* A deserted position gets a full dim-red band instead of an empty track, so
+   the cell needs no caption to say it is empty. */
+.slot-group.is-deserted .slot-meter > span {
+  background: var(--danger-dim);
+  width: 100% !important;
+}
+
 .slot-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0;
   background: none;
 }
 
 .slot {
-  padding: 0.1rem 0.25rem;
-  background: #e8f3ec;
-  border-radius: 3px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  font-size: 0.81rem;
+  font-weight: 500;
+  color: oklch(0.95 0.006 240);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* One place still open. A thin bar rather than a fill, so a shift missing one
-   person doesn't shout as loudly as one missing everybody. */
+/* The old amber/red hatched placeholders are gone — the meter carries it. */
 .slot-empty {
-  height: 1rem;
-  border-radius: 3px;
-  background: repeating-linear-gradient(
-          45deg, #fdf3e3, #fdf3e3 4px, #f7e6c8 4px, #f7e6c8 8px);
+  display: none;
 }
 
-/* gaps and the counts. */
 .slot-more,
 .slot-extra {
   background: none;
-}
-
-.slot-extra {
   color: var(--muted);
 }
-
 
 .slot-mark {
   margin-right: 0.3rem;
   opacity: 0.7;
 }
 
-/* What the shift wants, shown while the week is still collecting - nobody is
-   assigned yet, so there is nothing to be missing. */
 .slot-wanted {
   color: var(--muted);
-  padding: 0.1rem 0.25rem;
-}
-
-.slot-none {
-  color: var(--border);
+  padding: 0;
+  font-size: 0.81rem;
 }
 
 /* ----- requirements panel ----- */
 
+.requirements {
+  padding-top: 0;
+  border-top: none;
+}
+
+.requirements > .field-label {
+  display: block;
+  margin-bottom: 0.7rem;
+}
+
 .requirement-fields {
   display: flex;
-  gap: 1.2rem;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  margin-bottom: 0.9rem;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.7rem;
 }
 
 .requirement-field {
   display: flex;
-  align-items: flex-end;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.56rem 0.75rem;
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
 }
 
-.requirement-field .field {
-  width: 8rem;
+/* The name takes the slack so the checkbox and the number end up in the same
+   place on every row, however long the name is. A name too long for the row is
+   cut rather than pushing them out of line. */
+.requirement-field .field-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.845rem;
+  font-weight: 400;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.requirement-field input[type="number"] {
+  width: 3.6rem;
+  padding: 0.4rem 0.55rem;
+  border-color: oklch(0.34 0.014 240);
 }
 
 .requirement-field .checkbox {
-  font-size: 0.82rem;
-  padding-bottom: 0.5rem;
+  font-size: 0.75rem;
+  padding-bottom: 0;
 }
 
 .requirement-field .checkbox input:disabled + * {
@@ -803,13 +1344,7 @@ label {
 
 .head-actions {
   display: flex;
-  gap: 0.7rem;
-}
-
-button.secondary {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
+  gap: 0.5rem;
 }
 
 .dialog {
@@ -818,120 +1353,203 @@ button.secondary {
   gap: 1rem;
 }
 
+/* ----- warnings ----- */
+
 .warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: 0;
-  padding: 0.8rem 2rem 0.8rem 0.8rem;
-  background: #fdf3e3;
-  border-radius: var(--radius);
-  color: #8a6116;
-  font-size: 0.9rem;
+  padding: 0;
+  list-style: none;
+  background: none;
+  border-radius: 0;
+  color: inherit;
+  font-size: 0.81rem;
 }
 
 .warnings li {
-  margin: 0.2rem 0;
+  display: flex;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0.68rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--warn-text);
+  flex-direction: column;
+}
+
+.warnings li::before {
+  content: none;
+}
+
+.consequence {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-top: 0.15rem;
 }
 
 /* ----- assignment panel ----- */
 
 .assigned {
-  margin-bottom: 1rem;
+  margin-bottom: 0.9rem;
 }
 
 .assigned-list {
   list-style: none;
-  margin: 0.4rem 0 0;
+  margin: 0.7rem 0 0;
   padding: 0;
-  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.845rem;
 }
 
 .assigned-list li {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--border);
+  gap: 0.7rem;
+  padding: 0.56rem 0.7rem;
+  border-bottom: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
 }
 
-.assigned-list li:last-child {
-  border-bottom: none;
+.assigned-list li::before {
+  content: '';
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--covered);
+  flex: none;
+}
+
+.assigned-list li span:first-of-type {
+  font-weight: 600;
+  flex: 1;
+}
+
+/* The name takes the free space, so putting the tag right after it means the
+   position and the remove button stay put whether the row carries a tag or not. */
+.assigned-list .tag-soft {
+  order: 1;
+  margin: 0;
+}
+
+.assigned-list .cell-muted {
+  order: 2;
+  min-width: 6.5rem;
+}
+
+.assigned-list .icon-remove {
+  order: 3;
 }
 
 .assign-row {
   display: flex;
-  gap: 0.7rem;
+  gap: 0.5rem;
   align-items: center;
-  margin-bottom: 1.2rem;
+  margin-bottom: 0;
 }
 
 .assign-row select {
   flex: 1;
-  max-width: 20rem;
+  max-width: none;
+  border-color: var(--line-strong);
+  padding-inline-end: 0.5rem;
 }
 
-.requirements {
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
-}
-
-.requirements > .field-label {
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
-.consequence {
-  display: block;
-  font-size: 0.82rem;
-  opacity: 0.85;
-  margin-top: 0.15rem;
-}
-
-.hint-quiet {
-  color: #9aa3ac;
-  font-size: 0.78rem;
-}
-
-/* Removing somebody is an ordinary action, not a warning - it only turns red
-   under the cursor, when it's about to happen. */
 .icon-remove {
-  padding: 0;
+  padding: 0 0.2rem;
   background: none;
-  color: var(--danger);
-  font-size: 1.2rem;
+  color: oklch(0.66 0.012 240);
+  font-size: 1rem;
   line-height: 1;
+  font-weight: 400;
 }
 
-.week-row {
-  position: relative;
-  margin-bottom: 0.8rem;
+.icon-remove:hover:not(:disabled) {
+  background: none;
+  color: oklch(0.78 0.18 25);
 }
 
-.week-actions {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  gap: 0.7rem;
-}
-
-.solve-button {
-  background: #7d6ba3;
-}
+/* ----- solver result ----- */
 
 .solve-result {
-  margin: 0 0 0.8rem;
-  padding: 0.5rem 0.8rem;
-  background: #f0f4ee;
-  border-radius: var(--radius);
-  font-size: 0.88rem;
-  color: #4a5a3e;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0 0.9rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-raised);
+  border-radius: 9px;
+  font-size: 0.845rem;
+  color: var(--muted);
+}
+
+.solve-result::before {
+  content: '';
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: var(--covered);
+  flex: none;
 }
 
 .solve-result.has-gaps {
-  background: #fdf3e3;
-  color: #8a6116;
+  background: var(--warn-soft);
+  color: var(--warn-text);
+}
+
+.solve-result.has-gaps::before {
+  background: var(--warn);
 }
 
 .solve-result.is-deserted {
-  background: #fbeaea;
-  color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.solve-result.is-deserted::before {
+  background: var(--danger);
+}
+
+/* ----- grid legend (NEW) -----
+   Says out loud that red means an essential position with no coverage at all. */
+
+.legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 0.8rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend i {
+  width: 22px;
+  height: 5px;
+  border-radius: 3px;
+  flex: none;
+  background: var(--covered);
+}
+
+.legend i.is-warn {
+  background: var(--warn);
+}
+
+.legend i.is-critical {
+  background: var(--danger-dim);
+}
+
+.legend .legend-keys {
+  color: var(--muted-weak);
 }

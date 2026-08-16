@@ -7,16 +7,21 @@ export default function WeekPicker({ weeks, current, onChange, children }) {
 
     return (
         <div className="week-picker">
-            <button className="icon-button" disabled={!older}
-                    onClick={() => onChange(older)}>‹</button>
+            {/* The arrows and the dates are one control. Whatever the caller
+                passes in sits next to it, not inside it. */}
+            <div className="week-nav">
+                <button className="icon-button" disabled={!older}
+                        onClick={() => onChange(older)}>‹</button>
 
-            <div className="week-label">
-                <strong>{formatRange(current)}</strong>
-                {children}
+                <div className="week-label">
+                    <strong>{formatRange(current)}</strong>
+                </div>
+
+                <button className="icon-button" disabled={!newer}
+                        onClick={() => onChange(newer)}>›</button>
             </div>
 
-            <button className="icon-button" disabled={!newer}
-                    onClick={() => onChange(newer)}>›</button>
+            {children}
         </div>
     )
 }
