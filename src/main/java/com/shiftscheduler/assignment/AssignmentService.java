@@ -3,6 +3,7 @@ package com.shiftscheduler.assignment;
 import com.shiftscheduler.domain.Assignment;
 import com.shiftscheduler.domain.Employee;
 import com.shiftscheduler.domain.JobPosition;
+import com.shiftscheduler.domain.RosterChange;
 import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.domain.Shift;
@@ -10,6 +11,7 @@ import com.shiftscheduler.domain.ShiftRequirement;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.EmployeeLeaveRepository;
 import com.shiftscheduler.repository.EmployeeRepository;
+import com.shiftscheduler.repository.RosterChangeRepository;
 import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftRequirementRepository;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,6 +39,7 @@ public class AssignmentService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeLeaveRepository leaveRepository;
     private final ShiftPreferenceRepository preferenceRepository;
+    private final RosterChangeRepository rosterChangeRepository;
     private final ScheduleRules rules;
     private final ScheduleGuard guard;
 
@@ -45,6 +49,7 @@ public class AssignmentService {
                              EmployeeRepository employeeRepository,
                              EmployeeLeaveRepository leaveRepository,
                              ShiftPreferenceRepository preferenceRepository,
+                             RosterChangeRepository rosterChangeRepository,
                              ScheduleRules rules,
                              ScheduleGuard guard) {
         this.assignmentRepository = assignmentRepository;
@@ -53,6 +58,7 @@ public class AssignmentService {
         this.employeeRepository = employeeRepository;
         this.leaveRepository = leaveRepository;
         this.preferenceRepository = preferenceRepository;
+        this.rosterChangeRepository = rosterChangeRepository;
         this.rules = rules;
         this.guard = guard;
     }
@@ -120,6 +126,7 @@ public class AssignmentService {
 
         Assignment saved = assignmentRepository.save(assignment);
         guard.markChanged(schedule);
+        recordChange(schedule, employee, shift, true);
 
         return toResponse(saved, warnings, applied);
     }
@@ -344,7 +351,47 @@ public class AssignmentService {
     }
 
     private void clearAssignments(Schedule schedule, List<Assignment> assigns) {
+        // Recorded before the delete, because afterwards there is no row left
+        // saying who was on the shift.
+        for (Assignment assignment : assigns) {
+            recordChange(schedule, assignment.getEmployee(), assignment.getShift(), false);
+        }
+
         assignmentRepository.deleteAll(assigns);
         guard.markChanged(schedule);
+    }
+
+    // Remembers that this person needs to be told, but only on a week that is
+    // already out. On a draft nobody has seen the schedule yet, so there is
+    // nothing to announce.
+    //
+    // A change in the opposite direction on the same shift cancels the one
+    // waiting instead of adding to it: taking someone off and putting them
+    // straight back leaves them where they were published, so there is nothing
+    // to tell them. Once no rows are left the person drops off the list.
+    private void recordChange(Schedule schedule, Employee employee, Shift shift, boolean added) {
+        if (schedule.getStatus() != ScheduleStatus.PUBLISHED) {
+            return;
+        }
+
+        Optional<RosterChange> waiting = rosterChangeRepository
+                .findByScheduleIdAndEmployeeIdAndShiftId(
+                        schedule.getId(), employee.getId(), shift.getId());
+
+        if (waiting.isPresent()) {
+            if (waiting.get().isAdded() != added) {
+                rosterChangeRepository.delete(waiting.get());
+            }
+
+            return;
+        }
+
+        RosterChange change = new RosterChange();
+        change.setSchedule(schedule);
+        change.setEmployee(employee);
+        change.setShift(shift);
+        change.setAdded(added);
+
+        rosterChangeRepository.save(change);
     }
 }

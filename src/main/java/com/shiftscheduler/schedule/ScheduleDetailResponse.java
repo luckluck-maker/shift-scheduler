@@ -11,6 +11,9 @@ public record ScheduleDetailResponse(
         String status,
         long version,
         Instant submissionClosesAt,
+        // Employees waiting to be told the published week changed. 0 on any
+        // week that is not published yet.
+        long pendingChanges,
         List<ShiftResponse> shifts
 ) {
 }

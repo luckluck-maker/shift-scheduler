@@ -57,6 +57,11 @@
   --radius-sm: 8px;
   --radius-pill: 999px;
 
+  /* One height for anything sitting on the week row - the arrows, the status
+     and the buttons next to them. They used to be three different heights, so
+     the row grew and shrank depending on the week's status. */
+  --control-h: 2.35rem;
+
   font-family: 'IBM Plex Sans Hebrew', system-ui, sans-serif;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -75,6 +80,13 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* A tall week needs a scrollbar and a short one does not, and the 15px it takes
+   was pushing the whole page sideways as you paged between weeks. This keeps
+   the space reserved either way, so nothing moves. */
+html {
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -734,7 +746,13 @@ label {
   justify-content: center;
   gap: 0.6rem;
   direction: ltr;
-  width: auto;
+  /* 2/8 is narrower than 16/11, which moved the arrows every time the week
+     changed. The font is monospace, so 1ch is one character: the longest the
+     label ever gets is dd/mm - dd/mm, which is 13 characters plus the padding
+     on both sides, and that comes to 18ch. Half a ch on top so a fallback font
+     cannot clip it. Nothing wider than that - the arrows only need to stop
+     moving, not spread out. */
+  min-width: 18.5ch;
   padding: 0.42rem 0.9rem;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.81rem;
@@ -782,7 +800,26 @@ label {
 .week-actions {
   position: static;
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+/* A draft has two buttons here and a published week has none, so without this
+   the row was 37px on one week and 30px on the next, and the grid below it
+   jumped every time you paged across. Everything on the row is one height now,
+   so the row is the same whatever the status. */
+.week-nav,
+.week-status,
+.week-actions button {
+  min-height: var(--control-h);
+}
+
+/* The employee picker on the constraints screen. Inputs carry more padding than
+   buttons do, so it came out taller than everything next to it - a floor would
+   not bring it down, it has to be pinned. */
+.week-actions select {
+  height: var(--control-h);
+  padding-block: 0;
 }
 
 /* ----- summary cards (NEW) -----
@@ -1283,6 +1320,11 @@ label {
   color: var(--muted);
   padding: 0;
   font-size: 0.81rem;
+  /* Same as the filled cells - a long job title gets cut rather than pushing
+     the column out. Hovering shows the whole thing. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ----- requirements panel ----- */

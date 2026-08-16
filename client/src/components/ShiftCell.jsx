@@ -18,7 +18,8 @@ export default function ShiftCell({ coverage, collecting }) {
         return (
             <div className="slots">
                 {coverage.positions.map((position) => (
-                    <div key={position.jobPositionId} className="slot-wanted">
+                    <div key={position.jobPositionId} className="slot-wanted"
+                         title={position.jobPositionName}>
                         {position.required} {position.jobPositionName}
                     </div>
                 ))}
@@ -41,8 +42,15 @@ export default function ShiftCell({ coverage, collecting }) {
 
             {unrequested(coverage).map((person) => (
                 <div key={person.id} className="slot-group">
-                    {showLabels && <div className="slot-position">{person.jobPositionName}</div>}
-                    <div className="slot slot-extra">
+                    {/* The name goes in a span like it does above. Written as bare
+                        text it fell outside the rule that shortens a long one, so
+                        it ran past the edge of the cell. */}
+                    {showLabels && (
+                        <div className="slot-position">
+                            <span title={person.jobPositionName}>{person.jobPositionName}</span>
+                        </div>
+                    )}
+                    <div className="slot slot-extra" title={person.employeeName}>
                         {person.employeeName}
                         <span className="slot-mark">+</span>
                     </div>
@@ -84,7 +92,7 @@ function PositionSlots({ position, people, showLabel }) {
             + (short ? ' is-short' : '')}>
 
             <div className="slot-position">
-                <span>{position.jobPositionName}</span>
+                <span title={position.jobPositionName}>{position.jobPositionName}</span>
                 <span className="slot-count">{people.length}/{position.required}</span>
             </div>
 
@@ -95,6 +103,7 @@ function PositionSlots({ position, people, showLabel }) {
             <div className="slot-rows">
                 {shown.map((person, index) => (
                     <div key={person.id}
+                         title={person.employeeName}
                          className={index >= needed ? 'slot slot-extra' : 'slot'}>
                         {person.employeeName}
                         {index >= needed && <span className="slot-mark">+</span>}

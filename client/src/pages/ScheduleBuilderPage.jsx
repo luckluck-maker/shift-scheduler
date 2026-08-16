@@ -190,6 +190,22 @@ export default function ScheduleBuilderPage() {
             { version: detail.version }))
     }
 
+    // Only mails the people whose shifts the manager touched since the week went
+    // out. The roster itself already shows the change, so this is the notice.
+    //
+    // The mails go out on a queue, and the waiting list is cleared once they are
+    // sent, so the reply still carries the old count. Reloading a moment later
+    // picks up the real one. Clicking twice is refused by the server either way.
+    async function republish() {
+        if (!confirm('לאחר פרסום מחדש כל העובדים שמשמרותיהם שונו יקבלו הודעה במייל.')) return
+
+        await act(() => api.put(`/api/schedules/${week.id}/republish`,
+            { version: detail.version }))
+
+        await pause(500)
+        await loadWeek(true)
+    }
+
     // The request comes back immediately and the solver carries on in the
     // background, so the screen asks every second whether it's finished. Since timefold
     // can backtrack and unassign employees, not showing assignment progress.
@@ -279,8 +295,12 @@ export default function ScheduleBuilderPage() {
             <div className="page-head">
                 <h1>בניית סידור</h1>
 
-                {/* Closing submissions comes first so the group grows to the
-                    right - the other two stay put when it appears. */}
+                {/* Every status has exactly one action of its own, and they all
+                    go first so they share the same slot. שבוע חדש is the one
+                    button that is always here, so it goes last, against the edge
+                    the group is anchored to - otherwise it landed on one side of
+                    the status button on a draft and the other side while
+                    collecting, and jumped as you paged between weeks. */}
                 <div className="head-actions">
                     {collecting && (
                         <button className="secondary" onClick={lock} disabled={busy}>
@@ -288,14 +308,23 @@ export default function ScheduleBuilderPage() {
                         </button>
                     )}
 
-                    <button className="secondary" onClick={createWeek} disabled={busy || isSolving}>
-                        שבוע חדש
-                    </button>
-
                     {detail?.status === 'DRAFT' && (
                         <button onClick={() => setPublishing(true)}
                                 disabled={busy || isSolving}>פרסום</button>
                     )}
+
+                    {/* Only on once somebody is actually waiting to be told - the
+                        server rejects an empty republish anyway. */}
+                    {detail?.status === 'PUBLISHED' && (
+                        <button onClick={republish}
+                                disabled={busy || !(detail.pendingChanges > 0)}>
+                            פרסום מחדש
+                        </button>
+                    )}
+
+                    <button className="secondary" onClick={createWeek} disabled={busy || isSolving}>
+                        שבוע חדש
+                    </button>
                 </div>
             </div>
 
@@ -377,6 +406,15 @@ export default function ScheduleBuilderPage() {
                     )}
 
 
+                    {/* A published week can still be fixed by hand, so this says
+                        who has not been told yet. */}
+                    {detail?.pendingChanges > 0 && (
+                        <p className="solve-result has-gaps">
+                            הסידור שונה מאז הפרסום · {detail.pendingChanges} עובדים
+                            ממתינים להודעה
+                        </p>
+                    )}
+
                     {error && <p className="error">{error}</p>}
 
                     {detail && (
@@ -384,7 +422,7 @@ export default function ScheduleBuilderPage() {
                             shifts={detail.shifts.map(toGridShift)}
                             weekStart={detail.weekStart}
                             selected={selected}
-                            onSelectionChange={detail.status === 'PUBLISHED' ? undefined : setSelected}
+                            onSelectionChange={setSelected}
                             renderCell={(shift) => (
                                 <ShiftCell coverage={byShiftId.get(shift.shiftId)} collecting={collecting} />
                             )}
@@ -440,19 +478,14 @@ export default function ScheduleBuilderPage() {
                     )}
 
 
-                    {/* The key stays put; only the line about selecting is
-                        dropped on a published week, where there is nothing to
-                        select. */}
                     <div className="legend">
                         <span><i />מאויש</span>
                         <span><i className="is-warn" />חסר חלק מהאיוש</span>
                         <span><i className="is-critical" />תפקיד חיוני ללא איוש כלל</span>
 
-                        {detail?.status !== 'PUBLISHED' && (
-                            <span className="legend-keys">
-                                לחיצה בוחרת · גרירה בוחרת כמה · Esc מבטל
-                            </span>
-                        )}
+                        <span className="legend-keys">
+                            לחיצה בוחרת · גרירה בוחרת כמה · Esc מבטל
+                        </span>
                     </div>
                 </>
             )}

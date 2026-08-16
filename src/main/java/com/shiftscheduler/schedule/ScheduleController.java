@@ -60,6 +60,15 @@ public class ScheduleController {
         return scheduleService.publish(id, request);
     }
 
+    // Announces changes made by hand after the week was published. Separate from
+    // publish because the status stays PUBLISHED - only the mails go out.
+    @PutMapping("/{id}/republish")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ScheduleDetailResponse republish(@PathVariable Long id,
+                                            @Valid @RequestBody VersionedRequest request) {
+        return scheduleService.republish(id, request);
+    }
+
     @PutMapping("/{scheduleId}/shifts/{shiftId}/requirements")
     @PreAuthorize("hasRole('MANAGER')")
     public ShiftResponse replaceRequirements(

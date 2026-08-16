@@ -11,6 +11,7 @@ import com.shiftscheduler.domain.ShiftRequirement;
 import com.shiftscheduler.domain.ShiftType;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.JobPositionRepository;
+import com.shiftscheduler.repository.RosterChangeRepository;
 import com.shiftscheduler.repository.ScheduleRepository;
 import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.shiftscheduler.notification.RosterChangeNotifier;
 import com.shiftscheduler.notification.ScheduleNotifier;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -52,6 +54,7 @@ public class ScheduleService {
     private final JobPositionRepository jobPositionRepository;
     private final ShiftPreferenceRepository preferenceRepository;
     private final AssignmentRepository assignmentRepository;
+    private final RosterChangeRepository rosterChangeRepository;
     private final ScheduleGuard guard;
     private final CurrentUserProvider currentUser;
     private final JmsTemplate jmsTemplate;
@@ -65,6 +68,7 @@ public class ScheduleService {
                            JobPositionRepository jobPositionRepository,
                            ShiftPreferenceRepository preferenceRepository,
                            AssignmentRepository assignmentRepository,
+                           RosterChangeRepository rosterChangeRepository,
                            ScheduleGuard guard,
                            CurrentUserProvider currentUser, JmsTemplate jmsTemplate,
                            @Value("${app.submission.closes-days-before}") int closesDaysBefore,
@@ -76,6 +80,7 @@ public class ScheduleService {
         this.jobPositionRepository = jobPositionRepository;
         this.preferenceRepository = preferenceRepository;
         this.assignmentRepository = assignmentRepository;
+        this.rosterChangeRepository = rosterChangeRepository;
         this.guard = guard;
         this.currentUser = currentUser;
         this.jmsTemplate = jmsTemplate;
@@ -120,6 +125,9 @@ public class ScheduleService {
                 schedule.getStatus().name(),
                 schedule.getVersion(),
                 schedule.getSubmissionClosesAt(),
+                // How many people are waiting to hear about a change. The screen
+                // uses it to decide whether republishing does anything.
+                rosterChangeRepository.countEmployeesByScheduleId(id),
                 shiftResponses);
     }
 
@@ -261,6 +269,29 @@ public class ScheduleService {
         guard.markChanged(schedule);
 
         jmsTemplate.convertAndSend(ScheduleNotifier.TOPIC, id);
+
+        return findById(id);
+    }
+
+    // A published week can still be fixed by hand, and the people who were moved
+    // need to hear about it. The status does not change - the week is already
+    // out, this only sends the mails.
+    //
+    // The roster itself updates the moment the manager saves, so this is not
+    // what releases the change. It announces it.
+    @Transactional
+    public ScheduleDetailResponse republish(Long id, VersionedRequest request) {
+        Schedule schedule = guard.require(id);
+        guard.requireStatus(schedule, ScheduleStatus.PUBLISHED);
+        guard.requireVersion(schedule, request.version());
+
+        if (rosterChangeRepository.countEmployeesByScheduleId(id) == 0) {
+            throw new ConflictException("Nothing has changed since this week was published");
+        }
+
+        guard.markChanged(schedule);
+
+        jmsTemplate.convertAndSend(RosterChangeNotifier.TOPIC, id);
 
         return findById(id);
     }
