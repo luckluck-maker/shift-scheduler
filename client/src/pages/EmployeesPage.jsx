@@ -9,7 +9,6 @@ const EMPTY = {
     password: '',
     role: 'EMPLOYEE',
     maxWeeklyHours: 40,
-    active: true,
     jobPositionId: '',
 }
 
@@ -57,10 +56,36 @@ export default function EmployeesPage() {
         } catch (err) {
             if (err.code === 'STALE_VERSION') {
                 setError('הפרטים שונו במקביל. רענן ונסה שוב')
+            } else if (err.code === 'WRONG_STATUS') {
+                setError('מתבצעת כעת בניית סידור. יש להמתין לסיומה ולנסות שוב')
             } else if (err.code === 'LAST_MANAGER' || err.status === 400) {
                 setError('חייב להישאר לפחות מנהל אחד פעיל')
             } else {
                 setError('ההשבתה נכשלה')
+            }
+        }
+    }
+
+    // The other direction. A button of its own rather than a tick box in the
+    // edit form, because switching someone on or off is not the same kind of
+    // change as fixing their name.
+    async function activate(employee) {
+        if (!confirm(`להחזיר את ${employee.fullName} לפעילות?`)) {
+            return
+        }
+
+        try {
+            await api.put(`/api/employees/${employee.id}/activate?version=${employee.version}`)
+            await load()
+        } catch (err) {
+            if (err.code === 'STALE_VERSION') {
+                setError('הפרטים שונו במקביל. רענן ונסה שוב')
+            } else if (err.code === 'WRONG_STATUS') {
+                setError('מתבצעת כעת בניית סידור. יש להמתין לסיומה ולנסות שוב')
+            } else if (err.status === 400) {
+                setError('התפקיד של העובד אינו בשימוש. יש לעדכן לו תפקיד תחילה')
+            } else {
+                setError('ההפעלה נכשלה')
             }
         }
     }
@@ -115,9 +140,13 @@ export default function EmployeesPage() {
                                 <button className="secondary" onClick={() => setEditing(employee)}>
                                     עריכה
                                 </button>
-                                {employee.active && (
+                                {employee.active ? (
                                     <button className="danger" onClick={() => deactivate(employee)}>
                                         השבתה
+                                    </button>
+                                ) : (
+                                    <button className="secondary" onClick={() => activate(employee)}>
+                                        הפעלה
                                     </button>
                                 )}
                             </td>
@@ -143,8 +172,9 @@ export default function EmployeesPage() {
 }
 
 // One form for both creating and editing. They send different fields - a new
-// employee needs a password and can't be inactive, an existing one carries a
-// version - so the two are kept apart when submitting.
+// employee needs a password, an existing one carries a version - so the two are
+// kept apart when submitting. Neither of them sends whether the employee is
+// active; that is done from the row.
 function EmployeeForm({ employee, positions, onClose, onSaved }) {
     const [form, setForm] = useState(employee)
     const [error, setError] = useState(null)
@@ -177,7 +207,6 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
                     fullName: form.fullName,
                     role: form.role,
                     maxWeeklyHours: Number(form.maxWeeklyHours),
-                    active: form.active,
                     jobPositionId: Number(form.jobPositionId),
                 })
                 if (form.password) {
@@ -244,13 +273,9 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
                     </select>
                 </Field>
 
-                {!isNew && (
-                    <label className="checkbox">
-                        <input type="checkbox" checked={form.active}
-                               onChange={(e) => set('active', e.target.checked)} />
-                        פעיל
-                    </label>
-                )}
+                {/* No "active" tick box here any more - it lives on the row, as
+                    השבתה / הפעלה, so that switching someone off always
+                    goes through the one call that releases their shifts. */}
 
                 {error && <p className="error">{error}</p>}
 

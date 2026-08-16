@@ -23,6 +23,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     List<Assignment> findByShiftScheduleIdAndShiftIdIn(Long scheduleId,
                                                        Collection<Long> shiftIds);
 
+    List<Assignment> findByEmployeeIdAndShiftIdIn(Long employeeId, Collection<Long> shiftIds);
+
     List<Assignment> findByEmployeeIdAndShiftShiftDateBetween(Long employeeId,
                                                               LocalDate from, LocalDate to);
 

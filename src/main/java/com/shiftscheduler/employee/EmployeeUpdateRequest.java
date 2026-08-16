@@ -23,8 +23,9 @@ public record EmployeeUpdateRequest(
         @Max(168)
         int maxWeeklyHours,
 
-        boolean active,
-
+        // Whether the employee is active is not edited here. Turning someone off
+        // releases them from schedules, so it is its own request, the same way a
+        // schedule is published rather than having its status typed in.
         @NotNull
         Long jobPositionId
 ) {
