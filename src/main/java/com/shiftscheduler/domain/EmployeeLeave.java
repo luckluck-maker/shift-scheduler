@@ -15,6 +15,7 @@ import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDate;
 
+// One row per day off. A range is saved as separate days.
 @Entity
 @Table(name = "employee_leave",
         uniqueConstraints = @UniqueConstraint(

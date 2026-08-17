@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
+// Who still needs to be told their published week changed.
 public interface RosterChangeRepository extends JpaRepository<RosterChange, Long> {
 
     Optional<RosterChange> findByScheduleIdAndEmployeeIdAndShiftId(

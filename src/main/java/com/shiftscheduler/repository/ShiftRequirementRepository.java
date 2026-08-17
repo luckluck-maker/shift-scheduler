@@ -7,6 +7,7 @@ import com.shiftscheduler.domain.ScheduleStatus;
 import java.util.Collection;
 import java.util.List;
 
+// How many of each position a shift needs.
 public interface ShiftRequirementRepository extends JpaRepository<ShiftRequirement, Long> {
 
     List<ShiftRequirement> findByShiftIdOrderByIdAsc(Long shiftId);

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
+// The constraints employees submitted.
 public interface ShiftPreferenceRepository extends JpaRepository<ShiftPreference, Long> {
 
     boolean existsByEmployeeIdAndShiftId(Long employeeId, Long shiftId);

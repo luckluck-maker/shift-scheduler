@@ -11,8 +11,9 @@ import org.springframework.stereotype.Service;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-// The checks every schedule action needs: does it exist, does its status
-// allow this, and is the client's version current.
+// The checks that run before any change to a schedule.
+// Does the week exist, does its status allow the change, and is the manager
+// still on the version he was shown.
 @Service
 public class ScheduleGuard {
 
@@ -22,13 +23,15 @@ public class ScheduleGuard {
         this.scheduleRepository = scheduleRepository;
     }
 
+    // Loads the week, or 404 if there is no such id.
     public Schedule require(Long id) {
         return scheduleRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Schedule " + id + " not found"));
     }
 
-    // Checks if the action is allowed in the current schedule status.
-    // If not, tells the user what the status is and which ones would allow it.
+    // Allows the action only in the statuses listed.
+    // The message names the status the week is in and the ones that would
+    // have worked, so the manager can tell what went wrong.
     public void requireStatus(Schedule schedule, ScheduleStatus... allowed) {
         boolean ok = Arrays.asList(allowed).contains(schedule.getStatus());
 
@@ -44,6 +47,11 @@ public class ScheduleGuard {
         }
     }
 
+    // The manager sends back the version he was looking at. If someone else
+    // changed the week in between, the action is refused, and he is told to
+    // reload.
+    // This is for changes that come one after another. Two that arrive at the
+    // same time both pass here, and @Version stops the second one at commit.
     public void requireVersion(Schedule schedule, Long expected) {
         if (expected != null && expected != schedule.getVersion()) {
             throw new ConflictException(
@@ -52,8 +60,9 @@ public class ScheduleGuard {
         }
     }
 
-    // Marks after any change to the schedule,
-    // so a client holding an older copy gets told to reload.
+    // Raises the version of the whole week.
+    // Assignments and requirements sit in other tables, so Hibernate won't
+    // see a change here unless a field on the week itself is touched.
     public void markChanged(Schedule schedule) {
         schedule.touch();
     }

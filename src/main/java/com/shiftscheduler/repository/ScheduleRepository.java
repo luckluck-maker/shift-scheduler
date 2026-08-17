@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.time.Instant;
 
 
+// Weeks.
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     boolean existsByWeekStart(LocalDate weekStart);

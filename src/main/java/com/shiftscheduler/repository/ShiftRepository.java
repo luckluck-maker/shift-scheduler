@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+// The shifts inside a week.
 public interface ShiftRepository extends JpaRepository<Shift, Long> {
 
     List<Shift> findByScheduleIdOrderByShiftDateAscIdAsc(Long scheduleId);

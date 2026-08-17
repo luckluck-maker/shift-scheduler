@@ -3,13 +3,13 @@ package com.shiftscheduler.domain;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
-// The limits the scheduler works to. Some are legal - rest between shifts and
-// the weekly cap - and some are policy, like the minimum. Both the manual
-// checks and the solver read them from here so any change will be applied to both.
+// The numbers the scheduling rules use, not the rules themselves.
+// The rules are in ShiftConstraints for the solver and in ScheduleRules
+// for manual assignment. Both read the numbers from here, so changing one
+// applies to both.
 public final class SchedulingRules {
 
-    // Statutory: at least this long between the end of one shift and the start
-    // of the next. Rules out a night followed by a morning.
+    // Statutory. Blocks a night shift followed by a morning.
     public static final int MIN_REST_HOURS = 8;
 
     // Statutory: six working days a week.
@@ -19,14 +19,12 @@ public final class SchedulingRules {
     public static final int MIN_SHIFTS_PER_WEEK = 2;
     private static final int LEAVE_DAYS_PER_SHIFT = 2;
 
-    // A day off costs at most one shift, and not every day off would have been
-    // a working day.
+    // Every two days off lower the minimum by one shift.
     public static int minimumShiftsWith(int leaveDays) {
         return Math.max(0, MIN_SHIFTS_PER_WEEK - leaveDays / LEAVE_DAYS_PER_SHIFT);
     }
 
-    // Hours between two shifts, whichever order they come in. Overlapping
-    // shifts fall through to zero.
+    // Hours between two shifts, in either order. Returns 0 if they overlap.
     public static long restHoursBetween(LocalDateTime startA, LocalDateTime endA,
                                         LocalDateTime startB, LocalDateTime endB) {
         if (!endA.isAfter(startB)) {

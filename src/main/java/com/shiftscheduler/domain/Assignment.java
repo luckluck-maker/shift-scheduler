@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+// Links an employee to a shift.
 @Entity
 @Table(name = "assignment",
         uniqueConstraints = @UniqueConstraint(
@@ -30,6 +31,7 @@ public class Assignment {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
+    // Manager confirmed the assignment even though it broke a rule.
     @Column(name = "is_override", nullable = false)
     private boolean override;
 

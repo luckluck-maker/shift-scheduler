@@ -13,6 +13,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+// A person who can log in. Managers and employees are the same row,
+// only the role differs.
 @Entity
 @Table(name = "employee")
 public class Employee {
@@ -37,6 +39,7 @@ public class Employee {
     @Column(name = "max_weekly_hours", nullable = false)
     private int maxWeeklyHours;
 
+    // Employee is disabled, not deleted. Assignments in published weeks are kept.
     @Column(nullable = false)
     private boolean active = true;
 

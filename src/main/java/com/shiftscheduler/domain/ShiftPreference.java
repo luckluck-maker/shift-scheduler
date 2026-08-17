@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+// An employee's constraint on a single shift.
 @Entity
 @Table(name = "shift_preference",
         uniqueConstraints = @UniqueConstraint(

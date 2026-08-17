@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 
+// Who is on which shift.
 public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 
     boolean existsByShiftIdAndEmployeeId(Long shiftId, Long employeeId);

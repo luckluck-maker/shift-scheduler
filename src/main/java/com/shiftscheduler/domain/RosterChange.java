@@ -12,10 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 // One shift an employee gained or lost after their week was published.
-//
-// The shift and the direction are only here so an undone change can be spotted
-// and dropped. The mail itself says nothing about them - it tells the person to
-// sign in, same as the mail they got when the week was first published.
+// The shift and direction are kept so an undone change can be removed.
 @Entity
 @Table(name = "roster_change",
         uniqueConstraints = @UniqueConstraint(

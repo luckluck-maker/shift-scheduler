@@ -33,8 +33,8 @@ public class ShiftRequirement {
     @Column(name = "required_count", nullable = false)
     private int requiredCount;
 
-    // Whether the shift can run without this position at all. A restaurant
-    // needs a waiter; a supervisor is good to have but not a blocker.
+    // Whether the shift can run without this position.
+    // A shift missing an essential position is marked red for the manager.
     @Column(name = "is_essential", nullable = false)
     private boolean essential = true;
 

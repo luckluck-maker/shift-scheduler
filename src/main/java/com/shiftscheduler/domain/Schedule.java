@@ -13,6 +13,7 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 import java.time.LocalDate;
 
+// One week. Deleting it deletes its shifts.
 @Entity
 @Table(name = "schedule")
 public class Schedule {
@@ -77,9 +78,9 @@ public class Schedule {
         this.submissionClosesAt = submissionClosesAt;
     }
 
-    // @Version triggers only when this entity changes. Assignments and
-    // requirements live in other tables, so we touch this field to make
-    // Hibernate see a change and raise the version.
+    // Raises the version of the week.
+    // Assignments and requirements are in other tables, so Hibernate won't
+    // notice a change unless a field here is touched.
     public void touch() {
         this.lastChangedAt = Instant.now();
     }

@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 
 import java.time.LocalDate;
 
+// One slot on one day - a date plus a shift type.
 @Entity
 @Table(name = "shift")
 public class Shift {
