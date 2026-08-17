@@ -81,7 +81,9 @@ public class JobPositionService {
     public void delete(Long id) {
         JobPosition position = require(id);
 
-        if (employeeRepository.existsByJobPositionIdAndActiveTrue(id)) {
+        // Locked read rather than a plain exists, so somebody being moved into
+        // this position right now finishes first and is seen.
+        if (!employeeRepository.lockActiveByJobPosition(id).isEmpty()) {
             throw new ConflictException("Employees are still assigned to this position");
         }
 
@@ -93,9 +95,15 @@ public class JobPositionService {
 
     // Replaces the unique index that used to be on the name. Removed positions
     // keep theirs, so uniqueness only holds among the active ones.
+    // Reads the active positions under a write lock rather than querying for the
+    // one name. Two managers adding the same name at the same moment would both
+    // find nothing and both save it; this way the second one waits for the first
+    // to finish and then sees it.
     private void requireNameFree(String name, Long excludeId) {
-        jobPositionRepository.findByNameIgnoreCaseAndActiveTrue(name)
+        jobPositionRepository.lockActive().stream()
+                .filter(other -> other.getName().equalsIgnoreCase(name))
                 .filter(other -> !other.getId().equals(excludeId))
+                .findFirst()
                 .ifPresent(other -> {
                     throw new ConflictException(
                             "A job position named '" + name + "' already exists");

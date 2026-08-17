@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -82,5 +83,18 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiError> handleDuplicate(DataIntegrityViolationException ex) {
         return build(HttpStatus.CONFLICT,
                 "That record already exists. Reload and try again.", ErrorCode.DUPLICATE);
+    }
+
+    // Two requests arrived together, both read the same version, and both got
+    // past the check at the top of the service. Only one of them can win the
+    // update, and this is the other one. The version guard reports the same
+    // thing when the client is simply out of date, so the screen already knows
+    // what to do with it - without this it came back as a 500 and the user was
+    // told the action failed rather than to reload.
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiError> handleLostRace(ObjectOptimisticLockingFailureException ex) {
+        return build(HttpStatus.CONFLICT,
+                "The schedule was changed by someone else. Reload and try again.",
+                ErrorCode.STALE_VERSION);
     }
 }

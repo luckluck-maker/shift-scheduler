@@ -134,9 +134,13 @@ public class ShiftTypeService {
 
     // Replaces the unique index that used to be on the name. It can't live in
     // the database any more, because old versions hold the same name.
+    // Read under a write lock, so two requests naming the same shift type at
+    // the same moment cannot both find nothing and both save.
     private void requireNameFree(String name, Long excludeId) {
-        shiftTypeRepository.findByNameIgnoreCaseAndActiveTrue(name)
+        shiftTypeRepository.lockActive().stream()
+                .filter(other -> other.getName().equalsIgnoreCase(name))
                 .filter(other -> !other.getId().equals(excludeId))
+                .findFirst()
                 .ifPresent(other -> {
                     throw new ConflictException(
                             "A shift type named '" + name + "' already exists");
