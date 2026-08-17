@@ -38,6 +38,25 @@ public class SecurityConfig {
                         // needs a way to clear the cookie.
                         .requestMatchers("/api/health", "/api/auth/login", "/api/auth/logout")
                         .permitAll()
+
+                        // The page itself and the files it is built from. Running
+                        // in development the browser gets these from Vite and
+                        // only /api comes here, so this only matters once the
+                        // client is packaged into the jar - without it the login
+                        // page would need a login to reach. Nothing here carries
+                        // data; every value on screen comes from an API call that
+                        // is still checked below.
+                        .requestMatchers("/", "/index.html", "/favicon.ico",
+                                "/assets/**", "/vite.svg")
+                        .permitAll()
+
+                        // The client routes. Same list as SpaController, which
+                        // forwards them to index.html so a refresh on /schedule
+                        // does not 404.
+                        .requestMatchers("/{path:^(?!api|assets)[^.]*}",
+                                "/{path:^(?!api|assets)[^.]*}/**")
+                        .permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
