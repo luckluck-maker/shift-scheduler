@@ -88,6 +88,7 @@ public class ScheduleService {
         this.closesAtTime = closesAtTime;
     }
 
+    // Just the headings for the week picker. No shifts, no assignments.
     @Transactional(readOnly = true)
     public List<ScheduleSummaryResponse> findAll() {
 
@@ -99,14 +100,16 @@ public class ScheduleService {
                         schedule.getWeekStart(),
                         weekEnd(schedule),
                         schedule.getStatus().name(),
-                        schedule.getVersion(),
-                        shiftRepository.countByScheduleId(schedule.getId())))
+                        schedule.getVersion()))
                 .toList();
     }
 
+    // The manager's build screen: every shift with what it needs.
+    // Requirements come back in one query and are grouped here, instead of
+    // asking per shift.
     @Transactional(readOnly = true)
     public ScheduleDetailResponse findById(Long id) {
-        Schedule schedule = requireVisible(id);
+        Schedule schedule = guard.require(id);
 
         List<Shift> shifts = shiftRepository.findByScheduleIdOrderByShiftDateAscIdAsc(id);
 
@@ -131,6 +134,8 @@ public class ScheduleService {
                 shiftResponses);
     }
 
+    // One person's constraints. An employee always gets his own - the
+    // employeeId parameter only works for a manager.
     @Transactional(readOnly = true)
     public MyWeekResponse myWeek(Long scheduleId, Long employeeId) {
         Schedule schedule = guard.require(scheduleId);
@@ -166,12 +171,10 @@ public class ScheduleService {
         Schedule schedule = guard.require(scheduleId);
 
         boolean published = schedule.getStatus() == ScheduleStatus.PUBLISHED;
-        boolean visible = published || currentUser.isManager();
 
-        // Before publishing the screen still opens, it just has nothing in it.
-        // A 404 would look like an error to the client; an empty week reads as
-        // "not out yet" and lets the employee keep browsing.
-        List<RosterShift> shifts = visible ? buildRoster(scheduleId) : List.of();
+        // Empty until the week is published, so the screen can say it isn't
+        // out yet instead of showing an error.
+        List<RosterShift> shifts = published ? buildRoster(scheduleId) : List.of();
 
         return new RosterResponse(
                 schedule.getId(),
@@ -221,6 +224,8 @@ public class ScheduleService {
                 people);
     }
 
+    // Builds the week: every day gets one shift of each active shift type,
+    // and the staffing is copied from the week before.
     @Transactional
     public ScheduleDetailResponse create(ScheduleCreateRequest request) {
         LocalDate weekStart = request.weekStart();
@@ -247,6 +252,7 @@ public class ScheduleService {
         return findById(schedule.getId());
     }
 
+    // Closes the submission window and opens the week for building.
     @Transactional
     public ScheduleDetailResponse lock(Long id, VersionedRequest request) {
         Schedule schedule = guard.require(id);
@@ -259,6 +265,7 @@ public class ScheduleService {
         return findById(id);
     }
 
+    // The roster goes out and everyone gets a mail.
     @Transactional
     public ScheduleDetailResponse publish(Long id, VersionedRequest request) {
         Schedule schedule = guard.require(id);
@@ -273,12 +280,9 @@ public class ScheduleService {
         return findById(id);
     }
 
-    // A published week can still be fixed by hand, and the people who were moved
-    // need to hear about it. The status does not change - the week is already
-    // out, this only sends the mails.
-    //
-    // The roster itself updates the moment the manager saves, so this is not
-    // what releases the change. It announces it.
+    // Sends the mails for changes made after the week went out. The status
+    // stays PUBLISHED - the roster already shows the change, this only tells
+    // people about it.
     @Transactional
     public ScheduleDetailResponse republish(Long id, VersionedRequest request) {
         Schedule schedule = guard.require(id);
@@ -297,6 +301,8 @@ public class ScheduleService {
     }
 
     @Transactional
+    // Takes the full list for one shift and writes it over the old one.
+    // The flush forces the delete out before the inserts to avoid a clash.
     public ShiftResponse replaceRequirements(Long scheduleId,
                                              Long shiftId,
                                              ShiftRequirementsUpdateRequest request) {
@@ -377,6 +383,7 @@ public class ScheduleService {
         long dayOffset = ChronoUnit.DAYS.between(weekStart, shift.getShiftDate());
         return dayOffset + "|" + shift.getShiftType().getName();
     }
+
     private ShiftRequirement newRequirement(Shift shift, JobPosition position,
                                             int count, boolean essential) {
         ShiftRequirement requirement = new ShiftRequirement();
@@ -404,15 +411,6 @@ public class ScheduleService {
         return found;
     }
 
-    private Schedule requireVisible(Long id) {
-        Schedule schedule = guard.require(id);
-
-        if (!currentUser.isManager() && schedule.getStatus() != ScheduleStatus.PUBLISHED) {
-            throw new ResourceNotFoundException("Schedule " + id + " not found");
-        }
-
-        return schedule;
-    }
 
     private LocalDate weekEnd(Schedule schedule) {
         return schedule.getWeekStart().plusDays(DAYS_IN_WEEK - 1L);
@@ -486,6 +484,7 @@ public class ScheduleService {
 
     // Enables updates to the deadline while the week is still collecting
     @Transactional
+    // The manager setting the closing time himself.
     public ScheduleDetailResponse setSubmissionDeadline(Long id, DeadlineRequest request) {
         Schedule schedule = guard.require(id);
         guard.requireStatus(schedule, ScheduleStatus.COLLECTING);
@@ -497,6 +496,7 @@ public class ScheduleService {
         return findById(id);
     }
 
+    // Empties the job requirements on the selected shifts.
     @Transactional
     public void clearRequirements(Long scheduleId, List<Long> shiftIds, Long version) {
         Schedule schedule = guard.require(scheduleId);
@@ -507,9 +507,10 @@ public class ScheduleService {
         guard.markChanged(schedule);
     }
 
-    // Constraints close independently a few days before the week starts, unless
-    // the manager asked for something else (set up in application).
-    // Weeks added for a closing date that has already past by gets null
+    // Weekly constraints submission period close independently a few days
+    // before the week starts (exact timing set on application).
+    // The manager can close them earlier via schedule builder.
+    // Weeks added for a date that has already past by gets null
     // since otherwise it'll be closed immediately after.
     private Instant defaultDeadlineFor(LocalDate weekStart) {
         Instant closesAt = weekStart.minusDays(closesDaysBefore)

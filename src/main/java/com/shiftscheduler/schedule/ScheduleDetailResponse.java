@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+// One week with its shifts and their staffing requirements.
+// Used by the build screen.
 public record ScheduleDetailResponse(
         Long id,
         LocalDate weekStart,

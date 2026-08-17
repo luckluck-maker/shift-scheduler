@@ -6,12 +6,14 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+// A shift and its staffing requirements.
 public record ShiftResponse(
         Long id,
         LocalDate shiftDate,
         Long shiftTypeId,
         String shiftTypeName,
 
+        // Sends 07:00 instead of 07:00:00.
         @JsonFormat(pattern = "HH:mm")
         LocalTime startTime,
 

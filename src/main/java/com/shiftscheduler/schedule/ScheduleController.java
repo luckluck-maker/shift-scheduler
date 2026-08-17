@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+// Weeks: reading them, moving them through their statuses, and setting
+// the staffing each shift needs.
 @RestController
 @RequestMapping("/api/schedules")
 public class ScheduleController {
@@ -60,8 +62,6 @@ public class ScheduleController {
         return scheduleService.publish(id, request);
     }
 
-    // Announces changes made by hand after the week was published. Separate from
-    // publish because the status stays PUBLISHED - only the mails go out.
     @PutMapping("/{id}/republish")
     @PreAuthorize("hasRole('MANAGER')")
     public ScheduleDetailResponse republish(@PathVariable Long id,

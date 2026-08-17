@@ -302,7 +302,7 @@ Content-Type: application/json
   ]
 }
 
-### 3.2 List — expect 200, shiftCount 21, status COLLECTING
+### 3.2 List — expect 200, status COLLECTING
 GET http://localhost:8080/api/schedules
 
 ### 3.3 Detail — expect 200, shifts from 2026-08-09 to 2026-08-15

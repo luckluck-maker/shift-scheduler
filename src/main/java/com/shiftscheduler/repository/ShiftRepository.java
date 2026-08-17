@@ -19,8 +19,6 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
 
     void deleteByShiftTypeIdAndScheduleStatusNot(Long shiftTypeId, ScheduleStatus status);
 
-    int countByScheduleId(Long scheduleId);
-
     // Moves weeks that are still being planned onto the new version of a shift
     // type. Published ones stay where they are.
     @Modifying(clearAutomatically = true, flushAutomatically = true)

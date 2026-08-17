@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 
+// The new closing time. Null means the manager closes the window himself.
 public record DeadlineRequest(
 
         @NotNull
