@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
+// A range of days off for one employee.
 public record LeaveRequest(
 
         @NotNull

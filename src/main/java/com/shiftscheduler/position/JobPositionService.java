@@ -13,12 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-// Same versioning as shift types, but simpler: a position is only a name, so
-// there is nothing that could change and leave a published week reading wrong.
-// Renaming applies everywhere and no new version is ever needed.
-//
-// Deleting is the one thing that can be refused. An employee has to hold a
-// position, so anyone still in it needs moving first.
+// Job positions.
+// A position is only a name, so renaming applies everywhere.
+// Removing is refused while anyone still holds it.
 @Service
 public class JobPositionService {
 
@@ -34,6 +31,7 @@ public class JobPositionService {
         this.requirementRepository = requirementRepository;
     }
 
+    // The live positions, by name.
     @Transactional(readOnly = true)
     public List<JobPositionResponse> findAll() {
         return jobPositionRepository.findByActiveTrue(Sort.by("name")).stream()
@@ -46,14 +44,15 @@ public class JobPositionService {
         return toResponse(require(id));
     }
 
+    // A removed position with the same name is reused.
     @Transactional
     public JobPositionResponse create(JobPositionRequest request) {
         String name = request.name().trim();
 
         requireNameFree(name, null);
 
-        // Recreating a position that was removed brings the old row back, so
-        // published weeks that referred to it line up again.
+        // Recreating a removed position brings the old row back, so published
+        // weeks still point at it.
         JobPosition position = jobPositionRepository
                 .findByNameIgnoreCaseAndActiveFalse(name)
                 .orElseGet(JobPosition::new);
@@ -66,6 +65,7 @@ public class JobPositionService {
                 : position);
     }
 
+    // Renames it. Nothing else to change.
     @Transactional
     public JobPositionResponse update(Long id, JobPositionRequest request) {
         JobPosition position = require(id);
@@ -77,12 +77,12 @@ public class JobPositionService {
         return toResponse(position);
     }
 
+    // Hides the position and drops it from the weeks still being planned.
     @Transactional
     public void delete(Long id) {
         JobPosition position = require(id);
 
-        // Locked read rather than a plain exists, so somebody being moved into
-        // this position right now finishes first and is seen.
+        // Locked read, so somebody being moved into this position finishes first.
         if (!employeeRepository.lockActiveByJobPosition(id).isEmpty()) {
             throw new ConflictException("Employees are still assigned to this position");
         }
@@ -93,12 +93,9 @@ public class JobPositionService {
         position.setActive(false);
     }
 
-    // Replaces the unique index that used to be on the name. Removed positions
-    // keep theirs, so uniqueness only holds among the active ones.
-    // Reads the active positions under a write lock rather than querying for the
-    // one name. Two managers adding the same name at the same moment would both
-    // find nothing and both save it; this way the second one waits for the first
-    // to finish and then sees it.
+    // A name may only be used by one live position at a time. It can't be a
+    // unique key, because a removed position keeps its name.
+    // The write lock stops two requests both finding nothing and both saving.
     private void requireNameFree(String name, Long excludeId) {
         jobPositionRepository.lockActive().stream()
                 .filter(other -> other.getName().equalsIgnoreCase(name))
@@ -110,6 +107,7 @@ public class JobPositionService {
                 });
     }
 
+    // Loads a live position, or 404.
     private JobPosition require(Long id) {
         return jobPositionRepository.findById(id)
                 .filter(JobPosition::isActive)

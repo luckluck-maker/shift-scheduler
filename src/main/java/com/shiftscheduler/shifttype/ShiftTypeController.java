@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+// Shift types.
 @RestController
 @RequestMapping("/api/shift-types")
 public class ShiftTypeController {

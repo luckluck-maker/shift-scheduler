@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
+// Holiday and sick days.
 @RestController
 @RequestMapping("/api/leaves")
 @PreAuthorize("hasRole('MANAGER')")

@@ -14,14 +14,10 @@ import java.time.Duration;
 import java.time.LocalTime;
 import java.util.List;
 
-// Shift types are kept as versions rather than edited in place. Once a week
-// has been published it shouldn't change, and it points straight at the shift
-// type - so changing the hours of one a published week uses leaves the old row
-// alone, switched off, and carries on with a new one. Weeks still being
-// planned move across.
-//
-// Only the active row is ever shown. The old ones exist so published weeks
-// still make sense.
+// Shift types.
+// A published week keeps the hours it was published with. Changing those hours
+// makes a new row, and only planned weeks move to it.
+// Anything else is edited in place.
 @Service
 public class ShiftTypeService {
 
@@ -34,6 +30,7 @@ public class ShiftTypeService {
         this.shiftRepository = shiftRepository;
     }
 
+    // The live types, earliest start first.
     @Transactional(readOnly = true)
     public List<ShiftTypeResponse> findAll() {
         return shiftTypeRepository.findByActiveTrueOrderByStartTimeAsc().stream()
@@ -46,6 +43,7 @@ public class ShiftTypeService {
         return toResponse(require(id));
     }
 
+    // An old version with the same name and hours is reused.
     @Transactional
     public ShiftTypeResponse create(ShiftTypeRequest request) {
         String name = request.name().trim();
@@ -104,9 +102,8 @@ public class ShiftTypeService {
         return toResponse(replacement);
     }
 
-    // Shifts in weeks that haven't been published go with it - those are still
-    // being planned, so an empty row for a type nobody wants is just noise.
-    // Published weeks keep theirs.
+    // Shifts in weeks that were not published go with it. Published weeks keep
+    // theirs.
     @Transactional
     public void delete(Long id) {
         ShiftType shiftType = require(id);
@@ -115,8 +112,8 @@ public class ShiftTypeService {
         shiftType.setActive(false);
     }
 
-    // Changing the hours and changing them back shouldn't leave two identical
-    // rows, so an old version that already matches comes back instead.
+    // Changing the hours back to an old version brings that row back instead of
+    // making a duplicate.
     private ShiftType activate(ShiftTypeRequest request, String name) {
         return shiftTypeRepository
                 .findByNameIgnoreCaseAndStartTimeAndEndTimeAndActiveFalse(
@@ -132,10 +129,9 @@ public class ShiftTypeService {
                 });
     }
 
-    // Replaces the unique index that used to be on the name. It can't live in
-    // the database any more, because old versions hold the same name.
-    // Read under a write lock, so two requests naming the same shift type at
-    // the same moment cannot both find nothing and both save.
+    // A name may only be used by one live shift type at a time. It can't be a
+    // unique key, because old versions keep their name.
+    // The write lock stops two requests both finding nothing and both saving.
     private void requireNameFree(String name, Long excludeId) {
         shiftTypeRepository.lockActive().stream()
                 .filter(other -> other.getName().equalsIgnoreCase(name))
@@ -147,11 +143,13 @@ public class ShiftTypeService {
                 });
     }
 
+    // True when only the name is being changed.
     private boolean sameTimes(ShiftType shiftType, ShiftTypeRequest request) {
         return shiftType.getStartTime().equals(request.startTime())
                 && shiftType.getEndTime().equals(request.endTime());
     }
 
+    // A shift that starts and ends at the same time has no length.
     private void requireDifferentTimes(ShiftTypeRequest request) {
         if (request.startTime().equals(request.endTime())) {
             throw new ValidationException("A shift can't start and end at the same time");
@@ -167,6 +165,7 @@ public class ShiftTypeService {
         shiftType.setCrossesMidnight(request.endTime().isBefore(request.startTime()));
     }
 
+    // Loads a live shift type, or 404.
     private ShiftType require(Long id) {
         return shiftTypeRepository.findById(id)
                 .filter(ShiftType::isActive)
@@ -183,6 +182,7 @@ public class ShiftTypeService {
                 durationHours(shiftType.getStartTime(), shiftType.getEndTime()));
     }
 
+    // A night shift ends the next day, so its length wraps past midnight.
     private long durationHours(LocalTime start, LocalTime end) {
         Duration duration = Duration.between(start, end);
 

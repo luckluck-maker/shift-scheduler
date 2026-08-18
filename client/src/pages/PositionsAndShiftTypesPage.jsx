@@ -199,7 +199,7 @@ function PositionForm({ position, onClose, onSaved }) {
             <form onSubmit={submit} className="form">
                 <Field label="שם התפקיד">
                     <input value={name} onChange={(e) => setName(e.target.value)}
-                           maxLength={25} required autoFocus />
+                           maxLength={40} required autoFocus />
                 </Field>
 
                 {error && <p className="error">{error}</p>}

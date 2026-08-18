@@ -18,9 +18,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
+// Days off. A range is saved as one row per day.
 @Service
 public class LeaveService {
 
+    // Guards against a mistyped year. create saves a row per day, so a wrong
+    // date could write thousands. The database can't catch it - once saved
+    // there is no range, only single days.
     private static final int MAX_RANGE_DAYS = 366;
 
     private final EmployeeLeaveRepository leaveRepository;
@@ -35,6 +39,7 @@ public class LeaveService {
         this.assignmentRepository = assignmentRepository;
     }
 
+    // The days are merged back into ranges before they go out.
     @Transactional(readOnly = true)
     public List<LeaveResponse> findAll(Long employeeId) {
         List<EmployeeLeave> days = employeeId == null
@@ -44,6 +49,8 @@ public class LeaveService {
         return groupIntoRanges(days);
     }
 
+    // Creates leave for a date range.
+    // Refused if the employee already has leave or a shift in it.
     @Transactional
     public List<LeaveResponse> create(LeaveRequest request) {
         if (request.endDate().isBefore(request.startDate())) {
@@ -95,6 +102,7 @@ public class LeaveService {
         return groupIntoRanges(leaveRepository.saveAll(days));
     }
 
+    // Removes a single day out of a range.
     @Transactional
     public void deleteDay(Long id) {
         EmployeeLeave day = leaveRepository.findById(id)
@@ -103,6 +111,7 @@ public class LeaveService {
         leaveRepository.delete(day);
     }
 
+    // Removes every day between the two dates.
     @Transactional
     public void deleteRange(Long employeeId, LocalDate from, LocalDate to) {
         List<EmployeeLeave> days =
@@ -115,6 +124,8 @@ public class LeaveService {
         leaveRepository.deleteAll(days);
     }
 
+    // Leave is stored one day per row. This merges consecutive days of the
+    // same type back into a range.
     private List<LeaveResponse> groupIntoRanges(List<EmployeeLeave> days) {
         List<LeaveResponse> ranges = new ArrayList<>();
 

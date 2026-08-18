@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalTime;
 
+// A shift type with its hours and length.
 public record ShiftTypeResponse(
         Long id,
         String name,

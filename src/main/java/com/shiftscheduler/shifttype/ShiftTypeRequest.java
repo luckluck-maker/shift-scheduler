@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalTime;
 
+// A shift type with its hours.
 public record ShiftTypeRequest(
 
         @NotBlank

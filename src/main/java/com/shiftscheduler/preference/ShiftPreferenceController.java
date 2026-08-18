@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+// The constraints employees submit.
 @RestController
 @RequestMapping("/api/shift-preferences")
 public class ShiftPreferenceController {

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+// Job positions.
 @RestController
 @RequestMapping("/api/job-positions")
 public class JobPositionController {

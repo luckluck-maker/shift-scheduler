@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+// The constraints employees submit before a week is built.
 @Service
 public class ShiftPreferenceService {
 
@@ -40,6 +41,7 @@ public class ShiftPreferenceService {
         this.currentUser = currentUser;
     }
 
+    // A manager can filter by employee. An employee always gets his own.
     @Transactional(readOnly = true)
     public List<ShiftPreferenceResponse> findBySchedule(Long scheduleId, Long employeeId) {
         Long filter = currentUser.isManager() ? employeeId : currentUser.employeeId();
@@ -52,6 +54,7 @@ public class ShiftPreferenceService {
         return preferences.stream().map(this::toResponse).toList();
     }
 
+    // One constraint per employee per shift.
     @Transactional
     public ShiftPreferenceResponse create(ShiftPreferenceCreateRequest request) {
         Long employeeId = resolveEmployeeId(request.employeeId());
@@ -79,6 +82,7 @@ public class ShiftPreferenceService {
         return toResponse(preferenceRepository.save(preference));
     }
 
+    // Changes the type or the reason.
     @Transactional
     public ShiftPreferenceResponse update(Long id, ShiftPreferenceUpdateRequest request) {
         ShiftPreference preference = requireOwned(id);
@@ -90,6 +94,7 @@ public class ShiftPreferenceService {
         return toResponse(preference);
     }
 
+    // Removes the constraint.
     @Transactional
     public void delete(Long id) {
         ShiftPreference preference = requireOwned(id);
@@ -108,6 +113,7 @@ public class ShiftPreferenceService {
         }
     }
 
+    // Only a manager may submit for somebody else.
     private Long resolveEmployeeId(Long requested) {
         if (requested == null || requested.equals(currentUser.employeeId())) {
             return currentUser.employeeId();
@@ -120,6 +126,7 @@ public class ShiftPreferenceService {
         return requested;
     }
 
+    // Somebody else's constraint answers 404. A 403 would confirm it exists.
     private ShiftPreference requireOwned(Long id) {
         ShiftPreference preference = preferenceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Preference " + id + " not found"));
@@ -133,6 +140,7 @@ public class ShiftPreferenceService {
         return preference;
     }
 
+    // An empty reason is stored as null.
     private String trimmed(String value) {
         if (value == null) {
             return null;
