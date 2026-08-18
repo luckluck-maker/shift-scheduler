@@ -38,9 +38,7 @@ public class EmployeeSchedule {
     //   hard   - leave, CANNOT, rest, one per day, weekly limits
     //   medium - a slot nobody was assigned to
     //   soft   - PREFERS_NOT, fairness
-    // Understaffing sits in medium so it can't be traded against preferences.
-    // In soft it would come down to weights, and enough small preference
-    // penalties would outweigh leaving a shift short.
+    // Understaffing is medium so preferences can never outweigh it.
     @PlanningScore
     private HardMediumSoftScore score;
 

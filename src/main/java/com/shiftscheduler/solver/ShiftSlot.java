@@ -5,6 +5,8 @@ import ai.timefold.solver.core.api.domain.entity.PlanningEntity;
 import ai.timefold.solver.core.api.domain.entity.PlanningPin;
 import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
 
+// One slot that needs a person. A shift needing 3 workers makes 3 of these.
+//
 // Timefold can run on JPA entities directly, see:
 // https://docs.timefold.ai/timefold-solver/latest/running-timefold-solver/library/jpa-jaxb-json-integration
 // That route needs a score converter, deep-clone annotations, and every lazy
@@ -13,7 +15,6 @@ import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
 // search, which runs outside a transaction.
 
 
-// One slot that needs a person. A shift needing 3 workers makes 3 of these.
 @PlanningEntity
 public class ShiftSlot {
 
@@ -25,9 +26,7 @@ public class ShiftSlot {
     private String jobPositionName;
 
 
-    // Whether the shift can run without this position at all. An empty
-    // essential position leaves the shift unable to operate; a non-essential
-    // one is only a missed opportunity.
+    // Whether the shift can run without this position.
     private boolean essential;
 
     // Filled by the manager before solving. The solver still counts it in

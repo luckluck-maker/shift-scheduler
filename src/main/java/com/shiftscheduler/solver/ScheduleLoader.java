@@ -32,7 +32,7 @@ public class ScheduleLoader {
     // The last day of the previous week. A Saturday night shift ends on Sunday
     // morning, which is the overlap the rest rule would otherwise miss.
     private static final int LOOKBACK_DAYS = 1;
-    // Only used if a schedule somehow has no shifts to measure.
+    // Only used when a schedule has no shifts to measure.
     private static final int DEFAULT_SHIFT_MINUTES = 8 * 60;
 
     private static final int DAYS_IN_WEEK = 7;
@@ -154,10 +154,9 @@ public class ScheduleLoader {
                 type.getName());
     }
 
-    // One slot per person a shift needs. Slots that already have someone are
-    // pinned are counted in every rule & the solver can't move them.
-    // The ones left empty are what it fills in, so a partially staffed shift gets
-    // completed.
+    // One slot per person a shift needs. A slot that already has someone is
+    // pinned: it counts in every rule, and the solver can't move it.
+    // The empty ones are what it fills, so a partly staffed shift gets completed.
     private List<ShiftSlot> buildSlots(Long scheduleId,
                                        List<Shift> weekShifts,
                                        Map<Long, PlanningShift> shifts,
@@ -250,7 +249,8 @@ public class ScheduleLoader {
                 .toList();
     }
 
-    // Only Dislikes - CANNOT & PREFERS_NOT - are loaded. no entry means the employee is able to work
+    // Only dislikes - CANNOT and PREFERS_NOT - are loaded. No entry means the
+      // employee can work the shift.
     private List<ShiftDislike> loadDislikes(Long scheduleId) {
         return preferenceRepository
                 .findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(scheduleId).stream()

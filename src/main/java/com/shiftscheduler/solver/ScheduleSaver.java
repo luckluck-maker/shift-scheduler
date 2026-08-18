@@ -43,13 +43,10 @@ public class ScheduleSaver {
     public int save(EmployeeSchedule solution) {
         List<Assignment> created = new ArrayList<>();
 
-        // Who is still on the staff now, at the moment of writing. The solver
-        // has been working for up to a minute from the list it read when it
-        // started, and someone switched off in between is not in this one.
+        // Who is still on the staff at the moment of writing.
         // Deactivating is refused while a week is solving, but that check runs
-        // before the solver reads its employees, so a request that slipped in
-        // between the two would still be missed. This is the last point where
-        // it can be caught.
+        // before the solver reads its employees, so a request between the two
+        // would be missed.
         Set<Long> stillActive = employeeRepository.findByActiveTrue(Sort.unsorted()).stream()
                 .map(Employee::getId)
                 .collect(Collectors.toSet());

@@ -8,7 +8,7 @@ import com.shiftscheduler.domain.SchedulingRules;
 import java.time.Duration;
 
 // The rules the solver scores a whole schedule by
-// I've chosen to implement 3 levels : high, medium and soft
+// I've chosen to implement 3 levels : hard, medium and soft
 // The solver uses tier-based scoring: a higher tier will ignore any amount of points from a lower tier.
 //   hard   - will include the illegal assignments (labor laws)
 //   medium - will include the understaffed assignments

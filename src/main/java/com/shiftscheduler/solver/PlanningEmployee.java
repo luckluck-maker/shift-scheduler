@@ -3,7 +3,7 @@ package com.shiftscheduler.solver;
 
 import ai.timefold.solver.core.api.domain.common.PlanningId;
 
-// A trimmed copy of Employee holding only what the rules look at.
+// A copy of Employee with only the fields the rules use.
 // Hours are kept in minutes so shift lengths add up without rounding.
 public class PlanningEmployee {
 

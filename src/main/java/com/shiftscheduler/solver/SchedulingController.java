@@ -3,6 +3,7 @@ package com.shiftscheduler.solver;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+// Starting the solver on a week and asking whether it is still running.
 @RestController
 @RequestMapping("/api/schedules")
 @PreAuthorize("hasRole('MANAGER')")
