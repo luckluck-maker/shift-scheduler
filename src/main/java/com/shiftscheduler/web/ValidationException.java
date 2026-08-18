@@ -1,5 +1,6 @@
 package com.shiftscheduler.web;
 
+// The input breaks a rule. 400.
 public class ValidationException extends RuntimeException {
 
     private final String code;

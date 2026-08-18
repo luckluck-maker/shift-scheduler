@@ -11,12 +11,11 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-// Builds and sends the emails.
+// Builds and sends the emails. The address is the employee's username.
 @Service
 public class EmployeeMailer {
 
@@ -36,8 +35,11 @@ public class EmployeeMailer {
         this.from = from;
     }
 
+    // Goes to everyone active, on a shift that week or not.
     public void sendSchedulePublished(Schedule schedule) {
         String weekStart = schedule.getWeekStart().format(DATE);
+        // Only the start is stored. A week is always seven days.
+        // Only the start is stored. A week is always seven days.
         String weekEnd = schedule.getWeekStart().plusDays(6).format(DATE);
 
         int sent = 0;
@@ -51,10 +53,12 @@ public class EmployeeMailer {
         log.info("Sent {} notifications for the week of {}", sent, weekStart);
     }
 
-    // Same mail, but only to the people the manager actually moved after the
-    // week went out. Getting it at all is the message: your week changed.
+    // Only to the people whose shifts changed after the week went out.
+    // The mail doesn't list the changes, it says to sign in and look.
     public void sendRosterChanged(Schedule schedule, List<Employee> employees) {
         String weekStart = schedule.getWeekStart().format(DATE);
+        // Only the start is stored. A week is always seven days.
+        // Only the start is stored. A week is always seven days.
         String weekEnd = schedule.getWeekStart().plusDays(6).format(DATE);
 
         int sent = 0;
@@ -68,6 +72,7 @@ public class EmployeeMailer {
         log.info("Sent {} change notifications for the week of {}", sent, weekStart);
     }
 
+    // The mail for a week that changed after it was published.
     private boolean sendChanged(Employee employee, String weekStart, String weekEnd) {
         SimpleMailMessage message = new SimpleMailMessage();
 
@@ -87,6 +92,7 @@ public class EmployeeMailer {
         return send(message, employee);
     }
 
+    // The mail for a week that was just published.
     private boolean send(Employee employee, String weekStart, String weekEnd) {
         SimpleMailMessage message = new SimpleMailMessage();
 

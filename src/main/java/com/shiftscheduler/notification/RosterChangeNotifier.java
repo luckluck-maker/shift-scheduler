@@ -16,9 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// Reacts when a manager republishes a week that was changed by hand.
-// Reads who is waiting, mails them, and clears the list so the next
-// republish only covers what changed since this one.
+// Sends the emails after a week is republished.
+// Reads who is waiting, mails them, and clears the list, so the next
+// republish only covers what changed after this one.
 @Component
 public class RosterChangeNotifier {
 
@@ -38,11 +38,15 @@ public class RosterChangeNotifier {
         this.mailer = mailer;
     }
 
+    // The message holds the id, not the week itself, so it is loaded here.
+    // Transactional for the delete at the end.
     @JmsListener(destination = TOPIC)
     @Transactional
     public void onRepublished(Long scheduleId) {
         Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
 
+        // Nothing in the app deletes a schedule. The id is only missing if the
+        // database was recreated while the message was still in the queue.
         if (schedule == null) {
             log.warn("Got a republish event for schedule {}, which no longer exists", scheduleId);
             return;
@@ -50,18 +54,18 @@ public class RosterChangeNotifier {
 
         List<RosterChange> pending = rosterChangeRepository.findByScheduleId(scheduleId);
 
+        // Republish already checked that somebody is waiting. Disabling an employee
+        // deletes their rows, so the list can still be empty by the time this runs.
+        // Republish already checked that somebody is waiting. Disabling an employee
+        // deletes their rows, so the list can still be empty by the time this runs.
         if (pending.isEmpty()) {
             log.warn("Schedule {} was republished with nobody waiting", scheduleId);
             return;
         }
 
-        // One person can have more than one shift waiting, and they only need
-        // telling once. Keyed by id rather than by the entity, so this does not
-        // rely on Employee having an equals of its own.
+        // The same person can have more than one shift waiting, and needs one mail.
         //
-        // Someone disabled since the change is skipped, the same way the publish
-        // mail only goes to active staff. They are signed out of the app, so
-        // telling them to go and look at their shifts leads nowhere.
+        // Someone disabled since then is skipped. They can't sign in anyway.
         List<Employee> employees = new ArrayList<>(pending.stream()
                 .map(RosterChange::getEmployee)
                 .filter(Employee::isActive)

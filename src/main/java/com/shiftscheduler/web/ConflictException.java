@@ -1,5 +1,6 @@
 package com.shiftscheduler.web;
 
+// The request clashes with the current state. 409.
 public class ConflictException extends RuntimeException {
 
     private final String code;

@@ -17,29 +17,35 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.time.Instant;
 import java.util.stream.Collectors;
 
+// Turns the exceptions the services throw into one shape of error response.
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    // A wrong username or password. 401.
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), null);
     }
 
+    // 404.
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
 
+    // A rule the caller broke, or two requests clashing. 409.
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), ex.getCode());
     }
 
+    // Input the rules refuse. 400.
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ApiError> handleValidationRule(ValidationException ex) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), ex.getCode());
     }
 
+    // Carries the broken rules, so the screen can offer to override them.
     @ExceptionHandler(AssignmentRejectedException.class)
     public ResponseEntity<AssignmentRejection> handleAssignmentRejected(
             AssignmentRejectedException ex) {
@@ -55,23 +61,29 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
+    // Bean validation on the request body.
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
         String details = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
+                // More than one field can fail at once, and the response has room
+                // for one message, so they are joined.
                 .collect(Collectors.joining("; "));
 
         return build(HttpStatus.BAD_REQUEST, details, null);
     }
 
+    // Malformed JSON, a missing parameter, or the wrong type. 400.
     @ExceptionHandler({
             HttpMessageNotReadableException.class,
             MissingServletRequestParameterException.class,
             MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ApiError> handleUnreadable(Exception ex) {
+        // The exception message names internal fields, so a fixed message goes back.
         return build(HttpStatus.BAD_REQUEST, "The request could not be read", null);
     }
 
+    // One shape for every error, so the screen can always read the same fields.
     private ResponseEntity<ApiError> build(HttpStatus status, String message, String code) {
         ApiError body = new ApiError(
                 Instant.now(), status.value(), status.getReasonPhrase(), code, message);
@@ -79,6 +91,7 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(status).body(body);
     }
 
+    // A unique key the code checked for and lost the race on. 409.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDuplicate(DataIntegrityViolationException ex) {
         return build(HttpStatus.CONFLICT,

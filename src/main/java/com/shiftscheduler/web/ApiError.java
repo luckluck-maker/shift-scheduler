@@ -3,6 +3,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
 
+// The body of every error response.
 public record ApiError(
         Instant timestamp,
         int status,
