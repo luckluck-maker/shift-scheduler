@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import Modal from '../components/Modal'
 import Field from '../components/Field'
 
+// Copied on every add, canceled form doesn't leave anything behind.
 const EMPTY = {
     fullName: '',
     username: '',
@@ -58,7 +59,7 @@ export default function EmployeesPage() {
                 setError('הפרטים שונו במקביל. רענן ונסה שוב')
             } else if (err.code === 'WRONG_STATUS') {
                 setError('מתבצעת כעת בניית סידור. יש להמתין לסיומה ולנסות שוב')
-            } else if (err.code === 'LAST_MANAGER' || err.status === 400) {
+            } else if (err.code === 'LAST_MANAGER') {
                 setError('חייב להישאר לפחות מנהל אחד פעיל')
             } else {
                 setError('ההשבתה נכשלה')
@@ -66,9 +67,7 @@ export default function EmployeesPage() {
         }
     }
 
-    // The other direction. A button of its own rather than a tick box in the
-    // edit form, because switching someone on or off is not the same kind of
-    // change as fixing their name.
+    // Brings a disabled employee back.
     async function activate(employee) {
         if (!confirm(`להחזיר את ${employee.fullName} לפעילות?`)) {
             return
@@ -128,9 +127,21 @@ export default function EmployeesPage() {
                     <tbody>
                     {employees.map((employee) => (
                         <tr key={employee.id} className={employee.active ? '' : 'row-muted'}>
-                            <td>{employee.fullName}</td>
-                            <td className="ltr">{employee.username}</td>
-                            <td>{employee.jobPositionName}</td>
+                            <td>
+                                <span className="cell-clip" title={employee.fullName}>
+                                    {employee.fullName}
+                                </span>
+                            </td>
+                            <td className="ltr">
+                                <span className="cell-clip" title={employee.username}>
+                                    {employee.username}
+                                </span>
+                            </td>
+                            <td>
+                                <span className="cell-clip" title={employee.jobPositionName}>
+                                    {employee.jobPositionName}
+                                </span>
+                            </td>
                             <td className="ltr">{employee.maxWeeklyHours}</td>
                             <td>
                                 {employee.active ? 'פעיל' : 'מושבת'}
@@ -173,8 +184,7 @@ export default function EmployeesPage() {
 
 // One form for both creating and editing. They send different fields - a new
 // employee needs a password, an existing one carries a version - so the two are
-// kept apart when submitting. Neither of them sends whether the employee is
-// active; that is done from the row.
+// kept apart when submitting.
 function EmployeeForm({ employee, positions, onClose, onSaved }) {
     const [form, setForm] = useState(employee)
     const [error, setError] = useState(null)
@@ -191,6 +201,8 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
         setError(null)
         setSaving(true)
 
+        // The details and the password are two calls. If the second one fails the
+        // first is already saved, and the retry comes back as a stale version.
         try {
             if (isNew) {
                 await api.post('/api/employees', {
@@ -229,14 +241,16 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
                 <Field label="שם מלא">
                     <input value={form.fullName}
                            onChange={(e) => set('fullName', e.target.value)}
-                           required />
+                           maxLength={100} required />
                 </Field>
 
+                {/* Only when adding. The address is the login name, and the update
+                    request has no field for it. */}
                 {isNew && (
                     <Field label="דוא״ל">
                         <input type="email" value={form.username}
                                onChange={(e) => set('username', e.target.value)}
-                               required />
+                               maxLength={254} required />
                     </Field>
                 )}
 
@@ -245,7 +259,7 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
                 <Field label={isNew ? 'סיסמה' : 'סיסמה חדשה'}>
                     <input type="password" value={form.password ?? ''}
                            onChange={(e) => set('password', e.target.value)}
-                           minLength={8} required={isNew}
+                           minLength={8} maxLength={64} required={isNew}
                            placeholder={isNew ? undefined : 'השאר ריק כדי לא לשנות'} />
                 </Field>
 
@@ -273,10 +287,6 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
                     </select>
                 </Field>
 
-                {/* No "active" tick box here any more - it lives on the row, as
-                    השבתה / הפעלה, so that switching someone off always
-                    goes through the one call that releases their shifts. */}
-
                 {error && <p className="error">{error}</p>}
 
                 <div className="form-actions">
@@ -290,6 +300,8 @@ function EmployeeForm({ employee, positions, onClose, onSaved }) {
     )
 }
 
+// The two codes come first, because 400 and 409 are each used for more than
+// one thing.
 function messageFor(error, isNew) {
     if (error.code === 'LAST_MANAGER') {
         return 'חייב להישאר לפחות מנהל אחד פעיל'

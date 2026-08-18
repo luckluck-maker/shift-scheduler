@@ -40,6 +40,7 @@ export default function ConstraintsPage() {
     useEffect(() => {
         const calls = [api.get('/api/schedules')]
 
+        // The employee list is only loaded for a manager. It fills the picker.
         if (isManager) {
             calls.push(api.get('/api/employees'))
         }
@@ -57,6 +58,8 @@ export default function ConstraintsPage() {
             .finally(() => setLoading(false))
     }, [isManager])
 
+    // Reloads when the week changes, and when the manager picks a
+    // different employee.
     useEffect(() => {
         if (week) {
             loadWeek()
@@ -99,6 +102,8 @@ export default function ConstraintsPage() {
         try {
             // The overview needs the whole week's constraints rather than one
             // person's, so it asks for them separately.
+            // In the all view this asks for the manager's own week. Only the shifts
+            // are taken from it, the constraints come from the second call.
             const query = isManager && employeeId !== ALL ? `?employeeId=${employeeId}` : ''
 
             const calls = [api.get(`/api/schedules/${week.id}/my-week${query}`)]
@@ -127,6 +132,8 @@ export default function ConstraintsPage() {
         setBusy(true)
 
         try {
+            // Sends one request per selected shift. The server takes one preference
+            // at a time.
             for (const shift of selectedShifts) {
                 const current = shift.preferenceType ?? null
 
@@ -140,6 +147,8 @@ export default function ConstraintsPage() {
                     await api.post('/api/shift-preferences', {
                         shiftId: shift.shiftId,
                         type,
+                        // A manager sends the employee id. An employee doesn't, and
+                        // the server takes it from the token.
                         employeeId: isManager ? employeeId : undefined,
                     })
                 } else {
@@ -152,9 +161,11 @@ export default function ConstraintsPage() {
 
             await loadWeek(true)
         } catch (err) {
-            setError(err.status === 409
+            setError(err.code === 'WRONG_STATUS'
                 ? 'תקופת הגשת האילוצים לשבוע זה נסגרה'
-                : 'השמירה נכשלה')
+                : err.status === 409
+                    ? 'האילוץ כבר קיים. רענן ונסה שוב'
+                    : 'השמירה נכשלה')
 
             // Part of the loop may have gone through before it stopped, so the
             // grid is reloaded either way.
@@ -164,7 +175,7 @@ export default function ConstraintsPage() {
         }
     }
 
-    // Saved when the field loses focus, so there's no button to press.
+    // Saved when the selection changes or the panel closes.
     async function applyReason(reason, shifts) {
         const withPreference = shifts.filter((shift) => shift.preferenceId)
 
@@ -209,6 +220,7 @@ export default function ConstraintsPage() {
     // if changes are required, manager can select the specific employee
     // and make the changes over there
     const editableStatus = myWeek?.status === 'COLLECTING' || myWeek?.status === 'DRAFT'
+    // A manager can still edit after the submission window closed.
     const canEdit = !overview && editableStatus && (myWeek?.submissionOpen || isManager)
 
     const byShift = new Map()
@@ -225,8 +237,6 @@ export default function ConstraintsPage() {
                 <h1>אילוצים</h1>
             </div>
 
-            {/* Whose week to look at belongs with the week controls, not in the
-                page heading - it picks what the grid below shows. */}
             <div className="week-row">
                 <WeekPicker weeks={weeks} current={week} onChange={setWeek}>
                     {myWeek && (
@@ -304,7 +314,8 @@ export default function ConstraintsPage() {
 function SelectionPanel({ shifts, busy, onType, onReason }) {
     const [reason, setReason] = useState(sharedReason(shifts))
 
-
+    // The cleanup below runs after the state already changed, so it reads the
+    // values from refs.
     const reasonRef = useRef(reason)
     const shiftsRef = useRef(shifts)
 
@@ -313,6 +324,8 @@ function SelectionPanel({ shifts, busy, onType, onReason }) {
         shiftsRef.current = shifts
     }, [reason, shifts])
 
+    // The selected ids joined into a string. The two effects below depend on it,
+    // so they run when the selection changes and not on every render.
     const selectionKey = shifts.map((shift) => shift.shiftId).join()
 
     // Saved when the selection goes away - either the panel closes or a
@@ -328,7 +341,6 @@ function SelectionPanel({ shifts, busy, onType, onReason }) {
             }
         }
     }, [selectionKey])
-
 
     // A new selection brings its own reason, so the field follows it.
     useEffect(() => {
@@ -366,6 +378,8 @@ function SelectionPanel({ shifts, busy, onType, onReason }) {
                     <input
                         value={reason}
                         disabled={busy}
+                        /* The server takes 255 characters. Cut here so the request
+                           isn't sent to fail. */
                         maxLength={255}
                         placeholder="רשות"
                         onChange={(e) => setReason(e.target.value)}
@@ -390,6 +404,8 @@ function sharedType(shifts) {
         : undefined
 }
 
+// Returns empty when the selected shifts have different reasons. Saving then
+// doesn't copy one reason onto all of them.
 function sharedReason(shifts) {
     const first = shifts[0]?.preferenceReason ?? ''
 

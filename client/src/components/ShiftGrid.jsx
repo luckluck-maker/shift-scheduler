@@ -85,7 +85,7 @@ export default function ShiftGrid({ shifts, weekStart, renderCell,
             {rows.map((row) => (
                 <tr key={row.name}>
                     <th className="grid-row-head">
-                        <span className="grid-shift-name">{row.name}</span>
+                        <span className="grid-shift-name" title={row.name}>{row.name}</span>
                         <span className="grid-shift-time">{row.startTime}–{row.endTime}</span>
                     </th>
 

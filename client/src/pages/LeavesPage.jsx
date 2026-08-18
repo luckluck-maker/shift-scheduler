@@ -28,6 +28,8 @@ export default function LeavesPage() {
         setLoading(true)
 
         try {
+            // The server only accepts leave for an active employee, so the picker
+            // doesn't offer the others.
             const [leaveList, employeeList] = await Promise.all([
                 api.get('/api/leaves'),
                 api.get('/api/employees'),
@@ -53,6 +55,7 @@ export default function LeavesPage() {
         }
 
         try {
+            // Deletes every day in the range.
             await api.delete(
                 `/api/leaves?employeeId=${leave.employeeId}`
                 + `&from=${leave.startDate}&to=${leave.endDate}`)
@@ -89,9 +92,15 @@ export default function LeavesPage() {
                         </tr>
                         </thead>
                         <tbody>
+                        {/* A range has no id of its own. The employee and the first day
+                            identify it. */}
                         {leaves.map((leave) => (
                             <tr key={`${leave.employeeId}-${leave.startDate}`}>
-                                <td>{leave.employeeName}</td>
+                                <td>
+                                    <span className="cell-clip" title={leave.employeeName}>
+                                        {leave.employeeName}
+                                    </span>
+                                </td>
                                 <td className="cell-muted">
                       <span className="time-range">
                         {formatDate(leave.startDate)}
@@ -144,7 +153,7 @@ function LeaveForm({ employees, onClose, onSaved }) {
     }
 
     // Picking a start date fills in the end date too, since most leave is a
-    // single day and retyping the same date is annoying.
+    // single day.
     function setStart(value) {
         setForm((current) => ({
             ...current,
@@ -195,6 +204,7 @@ function LeaveForm({ employees, onClose, onSaved }) {
 
                     <Field label="עד תאריך">
                         <input type="date" value={form.endDate} min={form.startDate}
+                               max={maxEnd(form.startDate)}
                                onChange={(e) => set('endDate', e.target.value)} required />
                     </Field>
                 </div>
@@ -218,22 +228,32 @@ function LeaveForm({ employees, onClose, onSaved }) {
     )
 }
 
+// The server refuses a range over 366 days. Blocked here to prevent unnecessary
+// server requests that are bound to be rejected
+function maxEnd(startDate) {
+    if (!startDate) {
+        return undefined
+    }
+
+    const end = new Date(`${startDate}T00:00:00Z`)
+    end.setUTCDate(end.getUTCDate() + 365)
+
+    return end.toISOString().slice(0, 10)
+}
+
 function formatDate(iso) {
     const [year, month, day] = iso.split('-')
     return `${day}/${month}/${year}`
 }
 
 function messageFor(error) {
+    // Added error code as 409 is shared between the 2 errors.
     if (error.code === 'SHIFT_ASSIGNED') {
         return 'העובד משובץ למשמרת באחד מהתאריכים האלה'
     }
 
     if (error.status === 409) {
         return 'לעובד כבר רשומה היעדרות באחד מהתאריכים האלה'
-    }
-
-    if (error.status === 400) {
-        return 'תאריך הסיום לא יכול להיות לפני תאריך ההתחלה'
     }
 
     return 'השמירה נכשלה'

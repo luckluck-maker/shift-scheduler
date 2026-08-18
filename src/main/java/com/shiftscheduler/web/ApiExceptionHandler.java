@@ -98,12 +98,10 @@ public class ApiExceptionHandler {
                 "That record already exists. Reload and try again.", ErrorCode.DUPLICATE);
     }
 
-    // Two requests arrived together, both read the same version, and both got
-    // past the check at the top of the service. Only one of them can win the
-    // update, and this is the other one. The version guard reports the same
-    // thing when the client is simply out of date, so the screen already knows
-    // what to do with it - without this it came back as a 500 and the user was
-    // told the action failed rather than to reload.
+    // Two requests arrived together. Both read the same version, both passed
+    // requireVersion, and @Version failed the second one at commit.
+    // Answered as STALE_VERSION, the same code requireVersion returns, because
+    // either way the manager has to reload and try again.
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<ApiError> handleLostRace(ObjectOptimisticLockingFailureException ex) {
         return build(HttpStatus.CONFLICT,

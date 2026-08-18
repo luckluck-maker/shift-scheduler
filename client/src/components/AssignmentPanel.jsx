@@ -88,7 +88,9 @@ export default function AssignmentPanel({ shift, coverage, scheduleVersion, onCh
                     <ul className="assigned-list">
                         {sortByPosition(coverage).map((assignment, index, list) => (
                             <li key={assignment.id}>
-                                <span>{assignment.employeeName}</span>
+                                <span title={assignment.employeeName}>
+                                    {assignment.employeeName}
+                                </span>
                                 <span className="cell-muted">{assignment.jobPositionName}</span>
                                 {isExtra(assignment, list, coverage) && (
                                     <span className="tag-soft">נוסף</span>

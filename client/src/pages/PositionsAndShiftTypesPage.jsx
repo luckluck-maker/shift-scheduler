@@ -46,13 +46,18 @@ export default function PositionsAndShiftTypesPage() {
             await api.delete(`/api/job-positions/${position.id}`)
             await load()
         } catch (err) {
-            setError(err.status === 409
-                ? 'לא ניתן למחוק תפקיד שמשויכים אליו עובדים'
-                : 'המחיקה נכשלה')
+            setError(err.code === 'WRONG_STATUS'
+                ? 'לא ניתן לשנות תפקידים בזמן בניית סידור'
+                // 409 is a position that still has employees on it.
+                : err.status === 409
+                    ? 'לא ניתן למחוק תפקיד שמשויכים אליו עובדים'
+                    : 'המחיקה נכשלה')
         }
     }
 
     async function removeShiftType(shiftType) {
+        // Says what will be lost, because the delete reaches into schedules that
+        // are still being planned.
         if (!confirm(`למחוק את סוג המשמרת ${shiftType.name}?\n`
             + 'מחיקת סוג המשמרת תמחק את כל המשמרות בסידורים שטרם פורסמו.\n'
             + 'סידורים מפורסמים לא ישתנו.')) {
@@ -62,8 +67,10 @@ export default function PositionsAndShiftTypesPage() {
         try {
             await api.delete(`/api/shift-types/${shiftType.id}`)
             await load()
-        } catch {
-            setError('המחיקה נכשלה')
+        } catch (err) {
+            setError(err.code === 'WRONG_STATUS'
+                ? 'לא ניתן לשנות סוגי משמרת בזמן בניית סידור'
+                : 'המחיקה נכשלה')
         }
     }
 
@@ -84,6 +91,8 @@ export default function PositionsAndShiftTypesPage() {
                 <section className="section">
                     <div className="section-head">
                         <h2>תפקידים</h2>
+                        {/* An empty object opens the form in add mode. The form tells them
+                            apart by whether there is an id. */}
                         <button className="secondary" onClick={() => setEditingPosition({ name: '' })}>הוספת תפקיד</button>
                     </div>
 
@@ -91,7 +100,11 @@ export default function PositionsAndShiftTypesPage() {
                         <tbody>
                         {positions.map((position) => (
                             <tr key={position.id}>
-                                <td>{position.name}</td>
+                                <td>
+                                    <span className="cell-clip" title={position.name}>
+                                        {position.name}
+                                    </span>
+                                </td>
                                 <td className="row-actions">
                                     <button className="secondary"
                                             onClick={() => setEditingPosition(position)}>עריכה</button>
@@ -116,7 +129,11 @@ export default function PositionsAndShiftTypesPage() {
                         <tbody>
                         {shiftTypes.map((shiftType) => (
                             <tr key={shiftType.id}>
-                                <td>{shiftType.name}</td>
+                                <td>
+                                    <span className="cell-clip" title={shiftType.name}>
+                                        {shiftType.name}
+                                    </span>
+                                </td>
                                 <td className="cell-muted">
                                   <span className="time-range">
                                     {shiftType.startTime}–{shiftType.endTime}
@@ -198,6 +215,8 @@ function PositionForm({ position, onClose, onSaved }) {
         <Modal title={isNew ? 'תפקיד חדש' : 'עריכת תפקיד'} onClose={onClose}>
             <form onSubmit={submit} className="form">
                 <Field label="שם התפקיד">
+                    {/* The server takes 40 characters. Cut here so the request isn't
+                        sent to fail. */}
                     <input value={name} onChange={(e) => setName(e.target.value)}
                            maxLength={40} required autoFocus />
                 </Field>
@@ -256,6 +275,8 @@ function ShiftTypeForm({ shiftType, onClose, onSaved }) {
         <Modal title={isNew ? 'סוג משמרת חדש' : 'עריכת סוג משמרת'} onClose={onClose}>
             <form onSubmit={submit} className="form">
                 <Field label="שם">
+                    {/* The server takes 40 characters. Cut here so the request isn't
+                        sent to fail. */}
                     <input value={form.name} onChange={(e) => set('name', e.target.value)}
                            maxLength={40} required autoFocus />
                 </Field>
@@ -287,7 +308,12 @@ function ShiftTypeForm({ shiftType, onClose, onSaved }) {
     )
 }
 
+// 409 is a name already in use, 400 is start and end being the same time.
 function messageFor(error) {
+    if (error.code === 'WRONG_STATUS') {
+        return 'לא ניתן לשנות סוגי משמרת בזמן בניית סידור'
+    }
+
     if (error.status === 409) {
         return 'השם כבר קיים'
     }

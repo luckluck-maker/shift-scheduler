@@ -46,6 +46,8 @@ export default function ScheduleBuilderPage() {
         }
     }, [week])
 
+    // solve() waits for the solver. Nothing is waiting when the page is opened
+    // or refreshed in the middle of one, so this does it instead.
     useEffect(() => {
         if (detail?.status === 'SOLVING' && !solving) {
             setSolving(true)
@@ -56,6 +58,8 @@ export default function ScheduleBuilderPage() {
         }
     }, [detail?.status])
 
+    // Reloading clears the selected shifts. The reloads that follow an action on
+    // those same shifts pass true, so the panel stays open.
     async function loadWeek(keepSelection = false) {
         if (!keepSelection) {
             setSelected(new Set())
@@ -77,8 +81,7 @@ export default function ScheduleBuilderPage() {
         }
     }
 
-    // Escape and clicking away clear the selection, the same as on the
-    // constraints screen.
+    // Escape and clicking away clear the selection.
     useEffect(() => {
         if (selected.size === 0) {
             return
@@ -105,6 +108,8 @@ export default function ScheduleBuilderPage() {
         }
     }, [selected.size])
 
+    // The list comes back newest first, so the next week is a week after the
+    // first entry.
     async function createWeek() {
         const next = weeks.length === 0
             ? nextSunday()
@@ -128,8 +133,8 @@ export default function ScheduleBuilderPage() {
     }
 
     // Requirements are replaced per shift, so applying to a selection means one
-    // call each. They all send the same version, which is fine - the server only
-    // bumps it once per request and a stale one would be rejected loudly.
+    // call each. Every one of them raises the schedule version by one, and the
+    // next call has to send the new number.
     async function applyRequirements(counts) {
         setBusy(true)
 
@@ -144,11 +149,11 @@ export default function ScheduleBuilderPage() {
             let version = detail.version
 
             for (const shiftId of selected) {
-                const updated = await api.put(
+                await api.put(
                     `/api/schedules/${week.id}/shifts/${shiftId}/requirements`,
                     { version, requirements: body })
 
-                version = updated.scheduleVersion ?? version + 1
+                version++
             }
 
             await loadWeek(true)
@@ -251,6 +256,8 @@ export default function ScheduleBuilderPage() {
     }
 
 
+    // Every action that changes the week goes through here. It reloads the week
+    // and the list, so the version and the status are never stale.
     async function act(call) {
         setBusy(true)
 
@@ -272,6 +279,8 @@ export default function ScheduleBuilderPage() {
 
     const byShiftId = new Map(coverage.map((entry) => [entry.shiftId, entry]))
     const collecting = detail?.status === 'COLLECTING'
+    // True while this screen is waiting, and also when the week was already
+    // solving when the page opened.
     const isSolving = solving || detail?.status === 'SOLVING'
     // The cards read straight off coverage, so they always agree with the grid
     // underneath them.
@@ -295,12 +304,8 @@ export default function ScheduleBuilderPage() {
             <div className="page-head">
                 <h1>בניית סידור</h1>
 
-                {/* Every status has exactly one action of its own, and they all
-                    go first so they share the same slot. שבוע חדש is the one
-                    button that is always here, so it goes last, against the edge
-                    the group is anchored to - otherwise it landed on one side of
-                    the status button on a draft and the other side while
-                    collecting, and jumped as you paged between weeks. */}
+                {/* The buttons are laid out this way so they stay in the same
+                    place when paging between weeks in different statuses. */}
                 <div className="head-actions">
                     {collecting && (
                         <button className="secondary" onClick={lock} disabled={busy}>
@@ -438,6 +443,8 @@ export default function ScheduleBuilderPage() {
                                         : `${selected.size} משמרות נבחרו`}
                                 </strong>
 
+                                {/* Only on a draft. A published week is changed one
+                                    shift at a time. */}
                                 <button className="danger" onClick={clearShiftAssignments}
                                         disabled={busy || isSolving || assignedCount === 0 || detail.status !== 'DRAFT'}>
                                     איפוס שיבוצים
@@ -449,6 +456,8 @@ export default function ScheduleBuilderPage() {
                                 renders more than one element, and the grid needs
                                 one child per column. */}
                             <div className="panel-split">
+                                {/* One shift at a time, and not while constraints are
+                                    still being collected. */}
                                 {selected.size === 1 && detail.status !== 'COLLECTING' && !isSolving && (
                                     <div>
                                         <AssignmentPanel
@@ -509,6 +518,9 @@ function RequirementFields({ shifts, positions, busy, canClear, onApply, onClear
 
     // A new selection brings its own numbers. Where the selected shifts differ
     // the field is left blank rather than showing one of them.
+    //
+    // Compares the ids and not the array. A new array is built each time and
+    // would always look changed, so the fields would refill while in use.
     useEffect(() => {
         const next = {}
 
@@ -599,6 +611,7 @@ function toGridShift(shift) {
     }
 }
 
+// A position with no requirement on this shift counts as zero.
 function requirementFor(shift, jobPositionId) {
     const found = shift.requirements.find(
         (requirement) => requirement.jobPositionId === jobPositionId)

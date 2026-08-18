@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
+// The login screen. The only page that doesn't need a session.
 export default function LoginPage() {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
@@ -23,8 +24,6 @@ export default function LoginPage() {
             // Three different failures: a disabled account, wrong details, and the
             // server not answering.
             if (err.code === 'ACCOUNT_DISABLED') {
-                // Its own code from the server. See AuthService - a deliberate
-                // choice so the two can be told apart.
                 setError('החשבון שלך הושבת. פנה למנהל המערכת.')
             } else if (err.status === 401) {
                 setError('כתובת הדוא״ל או הסיסמה שגויים')
@@ -45,6 +44,7 @@ export default function LoginPage() {
                 <label htmlFor="username">דוא״ל</label>
                 <input
                     id="username"
+                    // The username is an email address.
                     type="email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -64,6 +64,7 @@ export default function LoginPage() {
 
                 {error && <p className="error">{error}</p>}
 
+                {/* Stops a second login being sent while the first is still going. */}
                 <button type="submit" disabled={submitting}>
                     {submitting ? 'מתחבר…' : 'כניסה'}
                 </button>

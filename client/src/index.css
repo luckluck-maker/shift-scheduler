@@ -1,11 +1,5 @@
 /* ============================================================================
    מסדרים ת'סידור — index.css
-   Full replacement for client/src/index.css.
-
-   Every class name that exists in the current file is kept, so most components
-   need no JSX change at all. Classes added by this design are grouped at the
-   bottom of each section and marked NEW; the four components that need markup
-   changes are listed in handoff/MIGRATION.md.
    ========================================================================= */
 
 :root {
@@ -165,7 +159,7 @@ a:hover {
   letter-spacing: -0.01em;
 }
 
-.brand-sub { /* NEW */
+.brand-sub {
   padding: 0 1.15rem;
   margin-top: 0.3rem;
   margin-bottom: 1.6rem;
@@ -236,7 +230,7 @@ a:hover {
   font-size: 0.845rem;
 }
 
-.who-role { /* NEW */
+.who-role {
   color: var(--muted);
   font-size: 0.78rem;
 }
@@ -264,7 +258,7 @@ a:hover {
   margin: 0;
 }
 
-.page-sub { /* NEW */
+.page-sub {
   margin: 0.35rem 0 0;
   font-size: 0.81rem;
   color: var(--muted);
@@ -286,7 +280,17 @@ a:hover {
   display: table;
 }
 
-.table-scroll { /* NEW — wrap every .table in this */
+/* A long value would stretch its column and push the table into sideways
+   scrolling. The whole thing is on the title, so hovering shows it. */
+.cell-clip {
+  display: block;
+  max-width: 14rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-scroll { /* Wraps every table, so a wide one scrolls inside its own box. */
   background: var(--surface);
   border-radius: var(--radius);
   overflow-x: auto;
@@ -731,7 +735,7 @@ label {
   margin-bottom: 0;
 }
 
-/* NEW — the arrows and the label are one control, not three loose items. */
+/* The arrows and the label are one control, not three loose items. */
 .week-nav {
   display: flex;
   align-items: center;
@@ -795,8 +799,8 @@ label {
   margin-bottom: 0.75rem;
 }
 
-/* No longer absolutely positioned — the row is a flex layout, so a button
-   appearing or disappearing cannot change the row's height. */
+/* The row is a flex layout, so a button appearing or disappearing cannot
+   change its height. */
 .week-actions {
   position: static;
   display: flex;
@@ -822,7 +826,7 @@ label {
   padding-block: 0;
 }
 
-/* ----- summary cards (NEW) -----
+/* ----- summary cards -----
    Values must be derived from the coverage response, never hardcoded. */
 
 .summary {
@@ -961,6 +965,9 @@ label {
 
 .grid-shift-name {
   display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .grid-shift-time {
@@ -992,6 +999,9 @@ label {
   padding: 0.12rem 0;
   font-size: 0.81rem;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .person-me {
@@ -1000,8 +1010,7 @@ label {
   color: oklch(0.15 0.03 200);
 }
 
-/* The whole cell is filled, and the label the old design needed is gone —
-   the employee's own name is emphasised instead. */
+/* The whole cell is filled, and the employee's own name is emphasised. */
 .cell-mine {
   margin: 0;
   padding: 0;
@@ -1255,7 +1264,7 @@ label {
   color: var(--danger);
 }
 
-/* NEW — the meter. Width is set inline from assigned / required. */
+/* The meter. Width is set inline from assigned / required. */
 .slot-meter {
   height: 5px;
   border-radius: 3px;
@@ -1300,7 +1309,7 @@ label {
   text-overflow: ellipsis;
 }
 
-/* The old amber/red hatched placeholders are gone — the meter carries it. */
+/* The meter already shows the gap, so the placeholder is not drawn. */
 .slot-empty {
   display: none;
 }
@@ -1470,6 +1479,12 @@ label {
 .assigned-list li span:first-of-type {
   font-weight: 600;
   flex: 1;
+  /* A flex item won't shrink below its content unless this is set, and a
+     long name would push the tag and the remove button out of the row. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The name takes the free space, so putting the tag right after it means the
@@ -1557,7 +1572,7 @@ label {
   background: var(--danger);
 }
 
-/* ----- grid legend (NEW) -----
+/* ----- grid legend -----
    Says out loud that red means an essential position with no coverage at all. */
 
 .legend {

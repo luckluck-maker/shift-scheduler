@@ -63,8 +63,6 @@ public class EmployeeController {
         employeeService.deactivate(id, version);
     }
 
-    // Its own endpoint rather than a field on the update, to match the way a
-    // schedule is published or locked.
     @PutMapping("/{id}/activate")
     public EmployeeResponse activate(@PathVariable Long id, @RequestParam Long version) {
         return employeeService.activate(id, version);

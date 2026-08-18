@@ -20,11 +20,14 @@ public record EmployeeCreateRequest(
         // only as long as he works for the company
         @NotBlank
         @Email
-        @Size(max = 120)
+        // RFC 5321 leaves 254 characters for the address itself.
+        @Size(max = 254)
         String username,
 
         @NotBlank
-        @Size(min = 8, max = 72)
+        // Argon2 has no length limit of its own. NIST SP 800-63B asks for at
+        // least 8 characters and for 64 to be accepted.
+        @Size(min = 8, max = 64)
         String password,
 
         @NotNull
