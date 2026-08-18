@@ -5,6 +5,7 @@ import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.repository.EmployeeRepository;
 import com.shiftscheduler.repository.JobPositionRepository;
 import com.shiftscheduler.repository.ShiftRequirementRepository;
+import com.shiftscheduler.schedule.ScheduleGuard;
 import com.shiftscheduler.web.ConflictException;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
@@ -22,13 +23,16 @@ public class JobPositionService {
     private final JobPositionRepository jobPositionRepository;
     private final EmployeeRepository employeeRepository;
     private final ShiftRequirementRepository requirementRepository;
+    private final ScheduleGuard guard;
 
     public JobPositionService(JobPositionRepository jobPositionRepository,
                               EmployeeRepository employeeRepository,
-                              ShiftRequirementRepository requirementRepository) {
+                              ShiftRequirementRepository requirementRepository,
+                              ScheduleGuard guard) {
         this.jobPositionRepository = jobPositionRepository;
         this.employeeRepository = employeeRepository;
         this.requirementRepository = requirementRepository;
+        this.guard = guard;
     }
 
     // The live positions, by name.
@@ -80,6 +84,8 @@ public class JobPositionService {
     // Hides the position and drops it from the weeks still being planned.
     @Transactional
     public void delete(Long id) {
+        guard.requireNothingSolving();
+
         JobPosition position = require(id);
 
         // Locked read, so somebody being moved into this position finishes first.

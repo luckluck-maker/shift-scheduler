@@ -23,6 +23,17 @@ public class ScheduleGuard {
         this.scheduleRepository = scheduleRepository;
     }
 
+    // Refuses a change while the solver is running. It works from the copy it
+    // read when it started, so anything changed underneath it comes back wrong
+    // in the solution it saves.
+    public void requireNothingSolving() {
+        if (scheduleRepository.existsByStatus(ScheduleStatus.SOLVING)) {
+            throw new ConflictException(
+                    "A schedule is being built right now. Wait for it to finish and try again.",
+                    ErrorCode.WRONG_STATUS);
+        }
+    }
+
     // Loads the week, or 404 if there is no such id.
     public Schedule require(Long id) {
         return scheduleRepository.findById(id)

@@ -18,7 +18,6 @@ import com.shiftscheduler.domain.Assignment;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.RosterChangeRepository;
-import com.shiftscheduler.repository.ScheduleRepository;
 import com.shiftscheduler.schedule.ScheduleGuard;
 
 import org.slf4j.Logger;
@@ -38,7 +37,6 @@ public class EmployeeService {
 
     private final AssignmentRepository assignmentRepository;
     private final RosterChangeRepository rosterChangeRepository;
-    private final ScheduleRepository scheduleRepository;
     private final ScheduleGuard guard;
 
     public EmployeeService(EmployeeRepository employeeRepository,
@@ -46,13 +44,12 @@ public class EmployeeService {
                            PasswordEncoder passwordEncoder,
                            AssignmentRepository assignmentRepository,
                            RosterChangeRepository rosterChangeRepository,
-                           ScheduleRepository scheduleRepository, ScheduleGuard guard) {
+                           ScheduleGuard guard) {
         this.employeeRepository = employeeRepository;
         this.jobPositionRepository = jobPositionRepository;
         this.passwordEncoder = passwordEncoder;
         this.assignmentRepository = assignmentRepository;
         this.rosterChangeRepository = rosterChangeRepository;
-        this.scheduleRepository = scheduleRepository;
         this.guard = guard;
     }
 
@@ -125,7 +122,9 @@ public class EmployeeService {
             return toResponse(employee);
         }
 
-        requireNothingSolving();
+        // Activating is blocked as well as deactivating, so both directions
+        // follow one rule.
+        guard.requireNothingSolving();
 
         // Their old job may have been retired while they were away. Bringing them
         // back onto it would leave an active employee doing a job no shift asks
@@ -151,7 +150,7 @@ public class EmployeeService {
             return;
         }
 
-        requireNothingSolving();
+        guard.requireNothingSolving();
 
         if (employee.getRole() == Role.MANAGER) {
             guardLastManager(employee.getId());
@@ -168,17 +167,6 @@ public class EmployeeService {
     public void changePassword(Long id, PasswordChangeRequest request) {
         Employee employee = require(id);
         employee.setPasswordHash(passwordEncoder.encode(request.newPassword()));
-    }
-
-    // The solver works from the employee list it read when it started, so someone
-    // deactivated in the middle would come back in the solution it saves.
-    // Activating is blocked too, so both directions follow one rule.
-    private void requireNothingSolving() {
-        if (scheduleRepository.existsByStatus(ScheduleStatus.SOLVING)) {
-            throw new ConflictException(
-                    "A schedule is being built right now. Wait for it to finish and try again.",
-                    ErrorCode.WRONG_STATUS);
-        }
     }
 
     // A PUT sends every field, including ones the user didn't touch.

@@ -4,6 +4,7 @@ import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.domain.ShiftType;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftTypeRepository;
+import com.shiftscheduler.schedule.ScheduleGuard;
 import com.shiftscheduler.web.ConflictException;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
@@ -23,11 +24,13 @@ public class ShiftTypeService {
 
     private final ShiftTypeRepository shiftTypeRepository;
     private final ShiftRepository shiftRepository;
+    private final ScheduleGuard guard;
 
     public ShiftTypeService(ShiftTypeRepository shiftTypeRepository,
-                            ShiftRepository shiftRepository) {
+                            ShiftRepository shiftRepository, ScheduleGuard guard) {
         this.shiftTypeRepository = shiftTypeRepository;
         this.shiftRepository = shiftRepository;
+        this.guard = guard;
     }
 
     // The live types, earliest start first.
@@ -56,6 +59,8 @@ public class ShiftTypeService {
 
     @Transactional
     public ShiftTypeResponse update(Long id, ShiftTypeRequest request) {
+        guard.requireNothingSolving();
+
         ShiftType current = require(id);
         String name = request.name().trim();
 
@@ -106,6 +111,8 @@ public class ShiftTypeService {
     // theirs.
     @Transactional
     public void delete(Long id) {
+        guard.requireNothingSolving();
+
         ShiftType shiftType = require(id);
 
         shiftRepository.deleteByShiftTypeIdAndScheduleStatusNot(id, ScheduleStatus.PUBLISHED);
