@@ -1,5 +1,6 @@
 package com.shiftscheduler.employee;
 
+// An employee for the list and the edit form.
 public record EmployeeResponse(
         Long id,
         String fullName,

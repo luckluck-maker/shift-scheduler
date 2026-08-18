@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
+// Staff: adding people, editing them, and activating or deactivating them.
 @Service
 public class EmployeeService {
 
@@ -70,6 +71,7 @@ public class EmployeeService {
         return toResponse(require(id));
     }
 
+    // The password is hashed here, never stored as typed.
     @Transactional
     public EmployeeResponse create(EmployeeCreateRequest request) {
         String username = request.username().trim();
@@ -84,12 +86,14 @@ public class EmployeeService {
         employee.setFullName(request.fullName().trim());
         employee.setRole(request.role());
         employee.setMaxWeeklyHours(request.maxWeeklyHours());
+        // The request has no active field. A new employee is always active.
         employee.setActive(true);
         employee.setJobPosition(requirePosition(request.jobPositionId()));
 
         return toResponse(employeeRepository.save(employee));
     }
 
+    // Name, role, hours and job position.
     @Transactional
     public EmployeeResponse update(Long id, EmployeeUpdateRequest request) {
         Employee employee = require(id);
@@ -110,13 +114,16 @@ public class EmployeeService {
         return toResponse(employee);
     }
 
-    // The other half of deactivate. Kept as its own call rather than a field on
-    // the edit form, because switching someone on or off is a change of state
-    // with consequences, not an attribute like their name.
+    // Brings a disabled employee back.
     @Transactional
     public EmployeeResponse activate(Long id, Long version) {
         Employee employee = require(id);
         requireCurrentVersion(employee, version);
+
+        // Already active, so there is nothing to change.
+        if (employee.isActive()) {
+            return toResponse(employee);
+        }
 
         requireNothingSolving();
 
@@ -139,28 +146,33 @@ public class EmployeeService {
         Employee employee = require(id);
         requireCurrentVersion(employee, version);
 
+        // Already inactive, so there is nothing to change.
+        if (!employee.isActive()) {
+            return;
+        }
+
         requireNothingSolving();
 
-        if (employee.getRole() == Role.MANAGER && employee.isActive()) {
+        if (employee.getRole() == Role.MANAGER) {
             guardLastManager(employee.getId());
         }
 
+        // Set inactive before the shifts are removed, so no other request can
+        // assign him meanwhile.
         employee.setActive(false);
         releaseFromSchedules(employee);
     }
 
+    // A new password for an employee.
     @Transactional
     public void changePassword(Long id, PasswordChangeRequest request) {
         Employee employee = require(id);
         employee.setPasswordHash(passwordEncoder.encode(request.newPassword()));
     }
 
-    // The solver holds a week in memory and writes it out when it finishes, using
-    // the list of employees it read when it started. Turning someone off in the
-    // middle never reaches that list, so they would come back in the solution it
-    // saves. Turning someone on is harmless in the same way - the solver will not
-    // know about them either - but every other action is refused while a week is
-    // solving, and having one exception is what makes rules get forgotten.
+    // The solver works from the employee list it read when it started, so someone
+    // deactivated in the middle would come back in the solution it saves.
+    // Activating is blocked too, so both directions follow one rule.
     private void requireNothingSolving() {
         if (scheduleRepository.existsByStatus(ScheduleStatus.SOLVING)) {
             throw new ConflictException(
@@ -194,17 +206,20 @@ public class EmployeeService {
         }
     }
 
+    // Loads the employee, or 404.
     private Employee require(Long id) {
         return employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee " + id + " not found"));
     }
 
+    // Loads an active job position, or 404.
     private JobPosition requirePosition(Long id) {
         return jobPositionRepository.findById(id)
                 .filter(JobPosition::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Job position " + id + " not found"));
     }
 
+    // Includes the version, which the next edit has to send back.
     private EmployeeResponse toResponse(Employee employee) {
         return new EmployeeResponse(
                 employee.getId(),
@@ -218,12 +233,9 @@ public class EmployeeService {
                 employee.getVersion());
     }
 
-    // Takes a disabled employee off the weeks that are still being worked on, and
-    // undoes anything they were given after a week had already gone out.
-    //
-    // A week that was published stays as it was published - it is the record of
-    // what people were told, so the shifts they already had stay on it. Only the
-    // changes made afterwards come off, because those never settled.
+    // Takes a disabled employee off the weeks still being worked on.
+    // A published week keeps the shifts it was published with. Only changes made
+    // after it went out are undone.
     private void releaseFromSchedules(Employee employee) {
         List<Assignment> assignments = new ArrayList<>(assignmentRepository
                 .findByEmployeeIdAndShiftScheduleStatusIn(employee.getId(),
@@ -231,8 +243,8 @@ public class EmployeeService {
 
         int fromDrafts = assignments.size();
 
-        // Every row here is a shift they gained or lost after their week was
-        // published, so the ones they gained are exactly what needs undoing.
+        // The shifts they gained or lost after the week was published.
+        // Only the gained ones have an assignment to remove.
         List<RosterChange> waiting = rosterChangeRepository.findByEmployeeId(employee.getId());
 
         List<Long> addedShiftIds = waiting.stream()

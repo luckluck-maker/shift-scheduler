@@ -3,6 +3,7 @@ package com.shiftscheduler.employee;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+// The new password.
 public record PasswordChangeRequest(
 
         @NotBlank

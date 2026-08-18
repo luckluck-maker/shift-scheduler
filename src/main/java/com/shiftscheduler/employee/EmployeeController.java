@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
+// Staff, and activating or deactivating them.
 @RestController
 @RequestMapping("/api/employees")
 @PreAuthorize("hasRole('MANAGER')")

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+// Login, logout, and who am I.
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -25,6 +26,8 @@ public class AuthController {
         this.cookieFactory = cookieFactory;
     }
 
+    // The token goes back as a cookie, not in the body, so the browser sends
+    // it on its own and JavaScript never sees it.
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request,
                                HttpServletResponse response) {
@@ -41,6 +44,8 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, cookieFactory.expire().toString());
     }
 
+    // Read straight off the token. The screen calls it once to know the name
+    // and the role.
     @GetMapping("/me")
     public CurrentUser me(@AuthenticationPrincipal Jwt jwt) {
         return new CurrentUser(

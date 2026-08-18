@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
+// The cookie the token travels in.
+// HttpOnly keeps it away from JavaScript, SameSite=Strict stops another
+// site sending it.
 @Component
 public class AuthCookieFactory {
 
@@ -26,6 +29,8 @@ public class AuthCookieFactory {
                 .build();
     }
 
+    // Logout: the same cookie with a zero lifetime, which tells the browser
+    // to drop it.
     public ResponseCookie expire() {
         return base("")
                 .maxAge(Duration.ZERO)

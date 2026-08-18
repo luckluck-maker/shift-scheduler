@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
+// Checking a password and handing back a signed token.
 @Service
 public class AuthService {
 
@@ -39,6 +40,8 @@ public class AuthService {
         Optional<Employee> found = employeeRepository.findByUsername(request.username());
 
         if (found.isEmpty()) {
+            // Hashed anyway so a wrong username takes as long as a wrong password.
+            // Without it the quick answer would tell an attacker the user doesn't exist.
             passwordEncoder.encode(request.password());
             throw new InvalidCredentialsException("Invalid username or password");
         }
@@ -67,6 +70,8 @@ public class AuthService {
         return new LoginResult(issueToken(employee), user);
     }
 
+    // The token carries the id and the role, so a request does not have to
+    // load the employee to know who is asking.
     private String issueToken(Employee employee) {
         Instant now = Instant.now();
 

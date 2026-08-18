@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+// A new employee. Active from the start.
 public record EmployeeCreateRequest(
 
         @NotBlank
