@@ -2,6 +2,7 @@ package com.shiftscheduler.auth;
 
 import com.shiftscheduler.domain.Employee;
 import com.shiftscheduler.repository.EmployeeRepository;
+import com.shiftscheduler.web.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -57,7 +58,8 @@ public class AuthService {
         // In prod message should be set to the default invalid message to not allow
         // information leak
         if (!employee.isActive()) {
-            throw new InvalidCredentialsException("Account is disabled");
+            throw new InvalidCredentialsException(
+                    "Account is disabled", ErrorCode.ACCOUNT_DISABLED);
         }
 
         LoginResponse user = new LoginResponse(

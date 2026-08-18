@@ -9,6 +9,7 @@ public final class ErrorCode {
     public static final String WRONG_STATUS = "WRONG_STATUS";
     public static final String DUPLICATE = "DUPLICATE";
     public static final String SHIFT_ASSIGNED = "SHIFT_ASSIGNED";
+    public static final String ACCOUNT_DISABLED = "ACCOUNT_DISABLED";
 
     private ErrorCode() {
     }

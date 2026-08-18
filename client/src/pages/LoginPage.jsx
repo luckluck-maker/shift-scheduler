@@ -20,9 +20,17 @@ export default function LoginPage() {
             await login(username, password)
             navigate('/')
         } catch (err) {
-            setError(err.status === 401
-                ? 'כתובת הדוא״ל או הסיסמה שגויים'
-                : 'ההתחברות נכשלה, נסה שוב')
+            // Three different failures: a disabled account, wrong details, and the
+            // server not answering.
+            if (err.code === 'ACCOUNT_DISABLED') {
+                // Its own code from the server. See AuthService - a deliberate
+                // choice so the two can be told apart.
+                setError('החשבון שלך הושבת. פנה למנהל המערכת.')
+            } else if (err.status === 401) {
+                setError('כתובת הדוא״ל או הסיסמה שגויים')
+            } else {
+                setError('ההתחברות נכשלה, נסה שוב')
+            }
         } finally {
             setSubmitting(false)
         }

@@ -24,7 +24,7 @@ public class ApiExceptionHandler {
     // A wrong username or password. 401.
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex) {
-        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), null);
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), ex.getCode());
     }
 
     // 404.
