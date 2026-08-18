@@ -12,6 +12,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+// The rules checked when a manager assigns someone by hand.
+// Blocking means the assignment is refused. Overridable means the manager
+// can go ahead, and the consequence says what will change. Warning is shown
+// only.
 @Service
 public class ScheduleRules {
 
@@ -36,6 +40,7 @@ public class ScheduleRules {
         this.preferenceRepository = preferenceRepository;
     }
 
+    // Collects every rule this assignment breaks.
     public List<RuleViolation> check(Employee employee, Shift shift) {
         List<RuleViolation> violations = new ArrayList<>();
 
@@ -50,6 +55,7 @@ public class ScheduleRules {
         return LocalDateTime.of(shift.getShiftDate(), shift.getShiftType().getStartTime());
     }
 
+    // A night shift ends the next day, so the date moves with it.
     public static LocalDateTime endsAt(Shift shift) {
         ShiftType type = shift.getShiftType();
         LocalDate endDate = type.isCrossesMidnight()
@@ -93,6 +99,8 @@ public class ScheduleRules {
                 });
     }
 
+    // Loads the employee's other shifts in this week once, then checks the
+    // whole list against them.
     private void checkOtherAssignments(Employee employee, Shift shift,
                                        List<RuleViolation> violations) {
         List<Assignment> existing = assignmentRepository
@@ -128,6 +136,8 @@ public class ScheduleRules {
         }
 
         // 8h rule from previous week
+        // The rest rule also has to hold across the week boundary, so the
+        // last published shift before this one is checked too.
         LocalDate shiftDate = shift.getShiftDate();
         for (Assignment prior : assignmentRepository.findPublishedBefore(shiftDate.minusDays(1), shiftDate)) {
             if (!prior.getEmployee().getId().equals(employee.getId())) {

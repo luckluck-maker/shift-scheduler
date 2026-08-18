@@ -30,6 +30,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+// Assigning people to shifts by hand, and reading back how well each shift
+// is covered.
 @Service
 public class AssignmentService {
 
@@ -63,6 +65,8 @@ public class AssignmentService {
         this.guard = guard;
     }
 
+    // Checks the rules first. Blocking ones refuse the assignment.
+    // Overridable ones refuse it too, unless the request says override.
     @Transactional
     public AssignmentResponse create(AssignmentCreateRequest request) {
         Shift shift = shiftRepository.findById(request.shiftId())
@@ -131,6 +135,8 @@ public class AssignmentService {
         return toResponse(saved, warnings, applied);
     }
 
+    // Deletes the leave or the constraint the manager overrode.
+    // Returns one line per change.
     private List<String> applyOverrides(Employee employee, Shift shift,
                                         List<RuleViolation> overridable) {
         List<String> applied = new ArrayList<>();
@@ -164,6 +170,7 @@ public class AssignmentService {
         return applied;
     }
 
+    // Clears the assignments on the selected shifts.
     @Transactional
     public void clearShifts(Long scheduleId, List<Long> shiftIds, Long version) {
         Schedule schedule = guard.require(scheduleId);
@@ -175,6 +182,7 @@ public class AssignmentService {
                 assignmentRepository.findByShiftScheduleIdAndShiftIdIn(scheduleId, shiftIds));
     }
 
+    // Clears every assignment in the week.
     @Transactional
     public void clearAll(Long scheduleId, Long version) {
         Schedule schedule = guard.require(scheduleId);
@@ -186,6 +194,7 @@ public class AssignmentService {
                         findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(scheduleId));
     }
 
+    // Removes one person from one shift.
     @Transactional
     public void delete(Long id, Long version) {
         Assignment assignment = assignmentRepository.findById(id)
@@ -200,6 +209,10 @@ public class AssignmentService {
 
 
 
+    // How many of each position a shift needs and how many it has. Feeds the
+    // colours on the grid.
+    // Requirements and assignments each come back in one query and are
+    // grouped here, instead of asking per shift.
     @Transactional(readOnly = true)
     public List<ShiftCoverage> coverage(Long scheduleId) {
         Schedule schedule = guard.require(scheduleId);
@@ -223,6 +236,8 @@ public class AssignmentService {
                 .toList();
     }
 
+    // The people who can still be picked for a shift. Anyone already on it is
+    // left out.
     @Transactional(readOnly = true)
     public List<AvailableEmployeeResponse> availableFor(Long shiftId, Long jobPositionId) {
         Shift shift = shiftRepository.findById(shiftId)
@@ -234,16 +249,15 @@ public class AssignmentService {
 
         return employeeRepository.findByActiveTrue(Sort.by("fullName")).stream()
                 .filter(employee -> !alreadyAssigned.contains(employee.getId()))
-                .filter(employee -> !alreadyAssigned.contains(employee.getId()))
                 .filter(employee -> jobPositionId == null
                         || employee.getJobPosition().getId().equals(jobPositionId))
                 .map(employee -> toAvailable(employee, shift))
                 .toList();
     }
 
-    // Runs the same checks the assignment itself will, so the list already
-    // knows who can't be picked and why. Doing it per employee means a few
-    // queries each, with a large roster this would be worth batching.
+    // Runs the same rules the assignment itself runs, so the list can show who
+    // can't be picked and why.
+    // One employee at a time, which costs a few queries each.
     private AvailableEmployeeResponse toAvailable(Employee employee, Shift shift) {
         JobPosition position = employee.getJobPosition();
 
@@ -268,6 +282,8 @@ public class AssignmentService {
                 .orElse(null);
     }
 
+    // True while the shift still has an open place for this job position.
+    // Assignments already marked as override are not counted against it.
     private boolean fitsRequirement(Shift shift, Employee employee) {
         Long positionId = employee.getJobPosition().getId();
 
@@ -361,14 +377,9 @@ public class AssignmentService {
         guard.markChanged(schedule);
     }
 
-    // Remembers that this person needs to be told, but only on a week that is
-    // already out. On a draft nobody has seen the schedule yet, so there is
-    // nothing to announce.
-    //
-    // A change in the opposite direction on the same shift cancels the one
-    // waiting instead of adding to it: taking someone off and putting them
-    // straight back leaves them where they were published, so there is nothing
-    // to tell them. Once no rows are left the person drops off the list.
+    // Adds employees to the list of people to be mailed for changes on a
+    // published week.
+    // A change that was undone gets removed.
     private void recordChange(Schedule schedule, Employee employee, Shift shift, boolean added) {
         if (schedule.getStatus() != ScheduleStatus.PUBLISHED) {
             return;

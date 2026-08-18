@@ -17,6 +17,8 @@ import com.shiftscheduler.schedule.ClearShiftsRequest;
 
 import java.util.List;
 
+// Assigning people to shifts, clearing them, and reading how well each shift
+// is covered.
 @RestController
 @RequestMapping("/api")
 @PreAuthorize("hasRole('MANAGER')")

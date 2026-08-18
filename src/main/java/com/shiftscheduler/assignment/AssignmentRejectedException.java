@@ -2,6 +2,8 @@ package com.shiftscheduler.assignment;
 
 import java.util.List;
 
+// Thrown when an assignment is refused. Carries the rules so the screen can
+// list them.
 public class AssignmentRejectedException extends RuntimeException {
 
     private final transient List<RuleViolation> blocking;

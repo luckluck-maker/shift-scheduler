@@ -1,5 +1,7 @@
 package com.shiftscheduler.assignment;
 
+// One rule a manual assignment breaks. Blocking refuses it, overridable lets
+// the manager go ahead, warning is shown only.
 public record RuleViolation(
         String rule,
         String severity,

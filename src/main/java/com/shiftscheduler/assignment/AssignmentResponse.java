@@ -3,6 +3,7 @@ package com.shiftscheduler.assignment;
 import java.time.LocalDate;
 import java.util.List;
 
+// A saved assignment, with anything the manager should still see.
 public record AssignmentResponse(
         Long id,
         Long shiftId,
