@@ -7,7 +7,9 @@ import jakarta.validation.constraints.Size;
 public record PasswordChangeRequest(
 
         @NotBlank
-        @Size(min = 8, max = 72)
+        // Argon2 has no length limit of its own. NIST SP 800-63B asks for at
+        // least 8 characters and for 64 to be accepted.
+        @Size(min = 8, max = 64)
         String newPassword
 ) {
 }
