@@ -4,10 +4,10 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 // The numbers the scheduling rules use, not the rules themselves.
-// The rules are in ShiftConstraints for the solver and in ScheduleRules
+// The rules are in SolverRules for the solver and in ManualRules
 // for manual assignment. Both read the numbers from here, so changing one
 // applies to both.
-public final class SchedulingRules {
+public final class RuleConstants {
 
     // Statutory. Blocks a night shift followed by a morning.
     public static final int MIN_REST_HOURS = 8;

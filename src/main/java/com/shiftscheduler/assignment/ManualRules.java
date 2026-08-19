@@ -17,7 +17,7 @@ import java.util.List;
 // can go ahead, and the consequence says what will change. Warning is shown
 // only.
 @Service
-public class ScheduleRules {
+public class ManualRules {
 
     public static final String RULE_ON_LEAVE = "EMPLOYEE_ON_LEAVE";
     public static final String RULE_CANNOT_WORK = "EMPLOYEE_CANNOT_WORK";
@@ -32,9 +32,9 @@ public class ScheduleRules {
     private final EmployeeLeaveRepository leaveRepository;
     private final ShiftPreferenceRepository preferenceRepository;
 
-    public ScheduleRules(AssignmentRepository assignmentRepository,
-                         EmployeeLeaveRepository leaveRepository,
-                         ShiftPreferenceRepository preferenceRepository) {
+    public ManualRules(AssignmentRepository assignmentRepository,
+                       EmployeeLeaveRepository leaveRepository,
+                       ShiftPreferenceRepository preferenceRepository) {
         this.assignmentRepository = assignmentRepository;
         this.leaveRepository = leaveRepository;
         this.preferenceRepository = preferenceRepository;
@@ -125,9 +125,9 @@ public class ScheduleRules {
 
         for (Assignment assignment : existing) {
             Shift other = assignment.getShift();
-            long gap = SchedulingRules.restHoursBetween(start, end, startsAt(other), endsAt(other));
+            long gap = RuleConstants.restHoursBetween(start, end, startsAt(other), endsAt(other));
 
-            if (gap < SchedulingRules.MIN_REST_HOURS) {
+            if (gap < RuleConstants.MIN_REST_HOURS) {
                 violations.add(RuleViolation.blocking(
                         RULE_REST,
                         "Only " + gap + "h rest around the shift on " + other.getShiftDate()));
@@ -144,8 +144,8 @@ public class ScheduleRules {
                 continue;
             }
             Shift other = prior.getShift();
-            long gap = SchedulingRules.restHoursBetween(start, end, startsAt(other), endsAt(other));
-            if (gap < SchedulingRules.MIN_REST_HOURS) {
+            long gap = RuleConstants.restHoursBetween(start, end, startsAt(other), endsAt(other));
+            if (gap < RuleConstants.MIN_REST_HOURS) {
                 violations.add(RuleViolation.blocking(RULE_REST, "Only " + gap + "h rest after last week's shift on " + other.getShiftDate()));
                 break;
             }
@@ -153,7 +153,7 @@ public class ScheduleRules {
 
         // Maximum 6 shifts a week
         long shiftCount = existing.size() + 1L;
-        if (shiftCount > SchedulingRules.MAX_SHIFTS_PER_WEEK) {
+        if (shiftCount > RuleConstants.MAX_SHIFTS_PER_WEEK) {
             violations.add(RuleViolation.blocking(
                     RULE_WEEKLY_SHIFTS,
                     employee.getFullName() + " would work " + shiftCount + " shifts this week"));

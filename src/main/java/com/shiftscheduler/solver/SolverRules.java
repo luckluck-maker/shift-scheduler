@@ -3,9 +3,7 @@ package com.shiftscheduler.solver;
 import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 import ai.timefold.solver.core.api.score.stream.*;
 import com.shiftscheduler.domain.PreferenceType;
-import com.shiftscheduler.domain.SchedulingRules;
-
-import java.time.Duration;
+import com.shiftscheduler.domain.RuleConstants;
 
 // The rules the solver scores a whole schedule by
 // I've chosen to implement 3 levels : hard, medium and soft
@@ -13,7 +11,7 @@ import java.time.Duration;
 //   hard   - will include the illegal assignments (labor laws)
 //   medium - will include the understaffed assignments
 //   soft   - will include the employees preferences and fairness
-public class ShiftConstraints implements ConstraintProvider {
+public class SolverRules implements ConstraintProvider {
 
     // Setting parameter to differentiate between a whole empty position and a single missing slot
     private static final int EMPTY_POSITION_WEIGHT = 9;
@@ -68,7 +66,7 @@ public class ShiftConstraints implements ConstraintProvider {
     Constraint restBetweenShifts(ConstraintFactory factory) {
         return factory.forEachUniquePair(ShiftSlot.class,
                         Joiners.equal(ShiftSlot::getEmployee))
-                .filter((first, second) -> restHoursBetween(first, second) < SchedulingRules.MIN_REST_HOURS)
+                .filter((first, second) -> restHoursBetween(first, second) < RuleConstants.MIN_REST_HOURS)
                 .penalize(HardMediumSoftScore.ONE_HARD)
                 .asConstraint("Rest between shifts");
     }
@@ -81,10 +79,10 @@ public class ShiftConstraints implements ConstraintProvider {
                         Joiners.equal(slot -> slot.getEmployee().getId(),
                                 PriorShiftEnd::employeeId))
                 .filter((slot, prior) ->
-                        SchedulingRules.restHoursBetween(
+                        RuleConstants.restHoursBetween(
                                 prior.endsAt(), prior.endsAt(),
                                 slot.getShift().getStart(), slot.getShift().getEnd())
-                                < SchedulingRules.MIN_REST_HOURS)
+                                < RuleConstants.MIN_REST_HOURS)
                 .penalize(HardMediumSoftScore.ONE_HARD)
                 .asConstraint("Rest after previous week");
     }
@@ -92,9 +90,9 @@ public class ShiftConstraints implements ConstraintProvider {
     Constraint maxShiftsPerWeek(ConstraintFactory factory) {
         return factory.forEach(ShiftSlot.class)
                 .groupBy(ShiftSlot::getEmployee, ConstraintCollectors.count())
-                .filter((employee, count) -> count > SchedulingRules.MAX_SHIFTS_PER_WEEK)
+                .filter((employee, count) -> count > RuleConstants.MAX_SHIFTS_PER_WEEK)
                 .penalize(HardMediumSoftScore.ONE_HARD,
-                        (employee, count) -> count - SchedulingRules.MAX_SHIFTS_PER_WEEK)
+                        (employee, count) -> count - RuleConstants.MAX_SHIFTS_PER_WEEK)
                 .asConstraint("Max shifts per week");
     }
 
@@ -228,7 +226,7 @@ public class ShiftConstraints implements ConstraintProvider {
     // forEachUniquePair gives no order, so need to check which shift comes first
     // before subtracting.
     private static long restHoursBetween(ShiftSlot a, ShiftSlot b) {
-        return SchedulingRules.restHoursBetween(
+        return RuleConstants.restHoursBetween(
                 a.getShift().getStart(), a.getShift().getEnd(),
                 b.getShift().getStart(), b.getShift().getEnd());
     }
