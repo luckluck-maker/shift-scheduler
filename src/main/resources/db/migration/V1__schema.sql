@@ -1,15 +1,15 @@
--- No unique name here. A position that a published week refers to is kept as
--- it was and a new row takes over, so the same name can appear more than once
--- with only one of them active. The service enforces that.
+-- The name is not unique here, since a position a published week refers to is
+-- kept as it was while a new row takes over. The service is what stops two
+-- active rows sharing a name.
 CREATE TABLE job_position
 (
     id     BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name   VARCHAR(60) NOT NULL,
+    name   VARCHAR(40) NOT NULL,
     active BIT(1)      NOT NULL DEFAULT b'1'
 );
 
--- Same as job_position: old versions stay behind so published weeks keep the
--- hours they were published with.
+-- Old versions stay behind, to allow a published week to keep the hours it was
+-- published with.
 CREATE TABLE shift_type
 (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -24,8 +24,10 @@ CREATE TABLE employee
 (
     id               BIGINT AUTO_INCREMENT PRIMARY KEY,
     full_name        VARCHAR(100) NOT NULL,
-    username         VARCHAR(120) NOT NULL,
-    password_hash    VARCHAR(100) NOT NULL,
+    -- An email address, 254 characters at most by RFC 5321.
+    username         VARCHAR(254) NOT NULL,
+    -- An Argon2 hash with the Spring Security defaults is 97 characters.
+    password_hash    VARCHAR(255) NOT NULL,
     role             VARCHAR(20)  NOT NULL,
     max_weekly_hours INT          NOT NULL,
     active           BIT(1)       NOT NULL DEFAULT b'1',
@@ -85,6 +87,29 @@ CREATE TABLE assignment
         FOREIGN KEY (shift_id) REFERENCES shift (id) ON DELETE CASCADE,
     CONSTRAINT fk_assignment_employee
         FOREIGN KEY (employee_id) REFERENCES employee (id)
+);
+
+-- The people to be mailed for changes made on a published week. A removed
+-- assignment leaves no row, so the person is kept here instead. Republishing
+-- sends the mails and empties it.
+CREATE TABLE roster_change
+(
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    employee_id BIGINT NOT NULL,
+    shift_id    BIGINT NOT NULL,
+    -- 1 = the manager put them on the shift, 0 = took them off.
+    added       BIT(1) NOT NULL,
+    -- At most one waiting change per person per shift, so a change that was
+    -- undone can be found and canceled instead of counting twice.
+    CONSTRAINT uk_roster_change_schedule_employee_shift
+        UNIQUE (schedule_id, employee_id, shift_id),
+    CONSTRAINT fk_roster_change_schedule
+        FOREIGN KEY (schedule_id) REFERENCES schedule (id) ON DELETE CASCADE,
+    CONSTRAINT fk_roster_change_employee
+        FOREIGN KEY (employee_id) REFERENCES employee (id),
+    CONSTRAINT fk_roster_change_shift
+        FOREIGN KEY (shift_id) REFERENCES shift (id) ON DELETE CASCADE
 );
 
 CREATE TABLE shift_preference
