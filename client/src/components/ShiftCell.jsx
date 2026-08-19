@@ -1,5 +1,4 @@
-// One cell of the manager's grid: a row per person the shift requirement, filled
-// or not.
+// One cell of the manager's grid: a row per shift requirement, filled or not.
 //
 // While the week is collecting nobody should be assigned yet, so a gap isn't a
 // problem and the cell just says what's wanted. From the draft on, gaps are highlighted
@@ -27,8 +26,6 @@ export default function ShiftCell({ coverage, collecting }) {
         )
     }
 
-    const showLabels = coverage.positions.length > 1
-
     return (
         <div className="slots">
             {coverage.positions.map((position) => (
@@ -36,20 +33,16 @@ export default function ShiftCell({ coverage, collecting }) {
                     key={position.jobPositionId}
                     position={position}
                     people={peopleFor(coverage, position.jobPositionId)}
-                    showLabel={showLabels}
                 />
             ))}
 
-            {unrequested(coverage).map((person) => (
+            {extras.map((person) => (
                 <div key={person.id} className="slot-group">
-                    {/* The name goes in a span like it does above. Written as bare
-                        text it fell outside the rule that shortens a long one, so
-                        it ran past the edge of the cell. */}
-                    {showLabels && (
-                        <div className="slot-position">
-                            <span title={person.jobPositionName}>{person.jobPositionName}</span>
-                        </div>
-                    )}
+                    {/* The name sits in a span so a long one gets shortened like
+                        the others. */}
+                    <div className="slot-position">
+                        <span title={person.jobPositionName}>{person.jobPositionName}</span>
+                    </div>
                     <div className="slot slot-extra" title={person.employeeName}>
                         {person.employeeName}
                         <span className="slot-mark">+</span>
@@ -64,7 +57,7 @@ export default function ShiftCell({ coverage, collecting }) {
 // the rest become a count. The panel below has the full list.
 const MAX_NAMES = 3
 
-function PositionSlots({ position, people, showLabel }) {
+function PositionSlots({ position, people }) {
     // Beyond the shift requirement for the position - either the
     // manager assigned over the requirement, or lowered it afterward.
     const needed = Math.min(people.length, position.required)
@@ -72,8 +65,7 @@ function PositionSlots({ position, people, showLabel }) {
     const shown = people.slice(0, MAX_NAMES)
     const hidden = people.length - shown.length
 
-    // Only an essential position that is completely empty turns red
-    // as per the logic defined in the solver rules
+    // Only an essential position that is completely empty turns red.
     const deserted = position.essential
         && people.length === 0
         && position.required > 0
@@ -82,9 +74,7 @@ function PositionSlots({ position, people, showLabel }) {
 
     // The one inline style in the app. It's a data value, not a design one -
     // how full the bar is comes from the numbers, so it can't live in the CSS.
-    const percent = position.required === 0
-        ? 100
-        : Math.round((needed / position.required) * 100)
+    const percent = Math.round((needed / position.required) * 100)
 
     return (
         <div className={'slot-group'

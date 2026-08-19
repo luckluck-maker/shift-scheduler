@@ -4,9 +4,12 @@ import Modal from './Modal'
 // Includes the warnings to make sure the manager is presented with
 // all the relevant information before publishing.
 export default function PublishDialog({ coverage, busy, onConfirm, onClose }) {
+    // Counts the shifts that are missing anyone at all.
     const short = coverage.filter((shift) =>
         shift.positions.some((position) => position.missing > 0))
 
+    // Collects the essential positions that nobody was assigned to, listed once
+    // even when several shifts are short.
     const deserted = coverage.flatMap((shift) =>
         shift.positions
             .filter((position) => position.essential

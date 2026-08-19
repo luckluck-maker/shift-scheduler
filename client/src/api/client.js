@@ -6,7 +6,7 @@ export class ApiError extends Error {
         // Set only where the server needs the screen to tell two failures apart.
         this.code = code
 
-        // The whole response. Only the assignment rejection uses it.
+        // Carries the whole response, which only the assignment rejection reads.
         this.body = body
 
     }
@@ -22,6 +22,8 @@ async function request(method, path, body) {
     const response = await fetch(path, {
         method,
         headers,
+        // Sends the HttpOnly cookie with every request, since the token can't be
+        // read from here.
         credentials: 'include',
         body: body === undefined ? undefined : JSON.stringify(body),
     })
@@ -36,7 +38,10 @@ async function request(method, path, body) {
     if (!response.ok) {
 
         // token expired or cleared, returns to the login screen
+        // Skips the auth paths so a failed login can show its own message.
         if (response.status === 401 && !path.includes('/api/auth/')) {
+            // Loads the whole page again so nothing is left from the session
+            // that ended.
             window.location.href = '/login'
             return null
         }

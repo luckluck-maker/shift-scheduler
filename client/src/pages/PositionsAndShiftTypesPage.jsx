@@ -215,8 +215,7 @@ function PositionForm({ position, onClose, onSaved }) {
         <Modal title={isNew ? 'תפקיד חדש' : 'עריכת תפקיד'} onClose={onClose}>
             <form onSubmit={submit} className="form">
                 <Field label="שם התפקיד">
-                    {/* The server takes 40 characters. Cut here so the request isn't
-                        sent to fail. */}
+                    {/* Cuts the name at 40 characters, the same limit the server takes. */}
                     <input value={name} onChange={(e) => setName(e.target.value)}
                            maxLength={40} required autoFocus />
                 </Field>
@@ -275,8 +274,7 @@ function ShiftTypeForm({ shiftType, onClose, onSaved }) {
         <Modal title={isNew ? 'סוג משמרת חדש' : 'עריכת סוג משמרת'} onClose={onClose}>
             <form onSubmit={submit} className="form">
                 <Field label="שם">
-                    {/* The server takes 40 characters. Cut here so the request isn't
-                        sent to fail. */}
+                    {/* Cuts the name at 40 characters, the same limit the server takes. */}
                     <input value={form.name} onChange={(e) => set('name', e.target.value)}
                            maxLength={40} required autoFocus />
                 </Field>

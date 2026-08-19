@@ -7,7 +7,7 @@ const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמיש
 // The rows come from the shifts this week actually has, not from every type
 // ever defined. They're sorted by start time so the day reads top to bottom.
 //
-// What details shows in the cells is up to the calling. The same grid shows:
+// What shows in the cells is up to the caller. The same grid shows:
 // 1. the roster to everyone
 // 2. for employees their own constraints and for a manager someone else's constraints
 // 3. for manager's new schedule week the roster plus what's still missing.
@@ -15,6 +15,8 @@ export default function ShiftGrid({ shifts, weekStart, renderCell,
                                       selected, onSelectionChange }) {
     const [dragging, setDragging] = useState(false)
 
+    // Turns the grid read-only unless the caller passes a handler for the
+    // selection.
     const selectable = Boolean(onSelectionChange)
 
     // A drag that ends outside the grid still has to stop, so the listener sits
@@ -35,10 +37,12 @@ export default function ShiftGrid({ shifts, weekStart, renderCell,
     const rows = shiftTypeRows(shifts)
     const days = weekDays(weekStart)
 
+    // Maps every shift by its type and date, so a cell can find its own from the
+    // row and the column.
     const byTypeAndDate = new Map(
         shifts.map((shift) => [`${shift.shiftTypeName}|${shift.shiftDate}`, shift]))
 
-// Selection is cumulative: dragging or clicking adds cells, and going over
+    // Selection is cumulative: dragging or clicking adds cells, and going over
     // one that's already picked takes it out. There's no separate way to clear -
     // you undo a selection the same way you made it.
     function startDrag(shiftId) {
@@ -92,6 +96,8 @@ export default function ShiftGrid({ shifts, weekStart, renderCell,
                     {days.map((day) => {
                         const shift = byTypeAndDate.get(`${row.name}|${day.iso}`)
 
+                        // Draws an empty cell when the week has no shift of that
+                        // type on that day.
                         if (!shift) {
                             return <td key={day.iso} className="grid-cell grid-cell-none" />
                         }

@@ -2,13 +2,14 @@
 export default function WeekPicker({ weeks, current, onChange, children }) {
     const index = weeks.findIndex((week) => week.id === current?.id)
 
+    // Takes the older week from the next entry, since the list is newest first.
     const older = weeks[index + 1]
     const newer = weeks[index - 1]
 
     return (
         <div className="week-picker">
-            {/* The arrows and the dates are one control. Whatever the caller
-                passes in sits next to it, not inside it. */}
+            {/* Groups the arrows and the dates into one control, and puts whatever
+                the caller passes in next to it. */}
             <div className="week-nav">
                 <button className="icon-button" disabled={!older}
                         onClick={() => onChange(older)}>‹</button>

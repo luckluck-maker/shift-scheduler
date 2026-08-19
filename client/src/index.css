@@ -21,14 +21,14 @@
   --muted-weak: oklch(0.74 0.010 240);
   --disabled: oklch(0.62 0.012 240);
 
-  /* ---- identity: the app, the current user, focus. NOT coverage. ---- */
+  /* ---- identity: the app, the current user, focus. not coverage. ---- */
   --accent: oklch(0.78 0.13 190);
   --accent-solid: oklch(0.74 0.13 190);
   --accent-ink: oklch(0.17 0.03 200);
   --accent-soft: oklch(0.245 0.03 200);
   --accent-soft-text: oklch(0.86 0.11 190);
 
-  /* ---- coverage / status. Colour marks a problem; covered stays quiet. ---- */
+  /* ---- coverage / status. Colour marks a problem, and full coverage stays quiet. ---- */
   --covered: oklch(0.64 0.10 165);
   --warn: oklch(0.82 0.14 75);
   --warn-soft: oklch(0.245 0.032 75);
@@ -51,9 +51,8 @@
   --radius-sm: 8px;
   --radius-pill: 999px;
 
-  /* One height for anything sitting on the week row - the arrows, the status
-     and the buttons next to them. They used to be three different heights, so
-     the row grew and shrank depending on the week's status. */
+  /* Keeps everything on the week row at one height, so the row doesn't grow
+     and shrink with the week's status. */
   --control-h: 2.35rem;
 
   font-family: 'IBM Plex Sans Hebrew', system-ui, sans-serif;
@@ -65,20 +64,12 @@
   color-scheme: dark;
 }
 
-/* Numbers, dates, times and ratios only. Never Hebrew labels — Hebrew has no
-   tracking convention and monospaced Hebrew reads as detached glyphs. */
-.mono {
-  font-family: 'IBM Plex Mono', monospace;
-  font-variant-numeric: tabular-nums;
-}
-
 * {
   box-sizing: border-box;
 }
 
-/* A tall week needs a scrollbar and a short one does not, and the 15px it takes
-   was pushing the whole page sideways as you paged between weeks. This keeps
-   the space reserved either way, so nothing moves. */
+/* Reserves the scrollbar space on every page, so the layout doesn't shift when
+   a week is tall enough to need one. */
 html {
   scrollbar-gutter: stable;
 }
@@ -133,8 +124,7 @@ a:hover {
 }
 
 /* ----- frame -----
-   The top bar became a fixed sidebar. .topbar / .menu / .menu-link keep their
-   names so Layout.jsx only changes structurally, not in its class strings. */
+   .topbar is the side bar, not a bar across the top. */
 
 .app {
   display: flex;
@@ -330,10 +320,8 @@ a:hover {
   color: var(--disabled);
 }
 
-/* Left as an ordinary table cell. Making it a flex container took it out of
-   the table's own sizing, so the column stopped matching its header and the
-   buttons drifted in from the edge. The buttons line up on their own, and the
-   cell hugs the left edge so they sit under the add button in the header. */
+/* Stays an ordinary table cell so the column keeps matching its header, and the
+   buttons line up under the add button in the header. */
 .table td.row-actions {
   white-space: nowrap;
   text-align: left;
@@ -354,7 +342,7 @@ a:hover {
   margin-right: 0.5rem;
 }
 
-/* A quieter tag than .tag, for facts rather than status */
+/* A quieter tag than .tag, for a fact rather than a status. */
 .tag-soft {
   display: inline-block;
   background: oklch(0.29 0.014 240);
@@ -383,11 +371,6 @@ a:hover {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
-}
-
-.field-error {
-  font-size: 0.78rem;
-  color: var(--danger-text);
 }
 
 .checkbox {
@@ -455,7 +438,7 @@ button:focus-visible {
   border-color: var(--accent-solid);
 }
 
-/* The single light-filled button. One terminal action per screen. */
+/* The one light-filled button, for the single terminal action on a screen. */
 button {
   padding: 0.56rem 1.1rem;
   border: none;
@@ -489,7 +472,7 @@ button.secondary:hover:not(:disabled) {
   background: oklch(0.245 0.014 240);
 }
 
-/* Destructive, outlined — never filled. */
+/* Destructive actions are outlined and never filled. */
 button.danger {
   background: transparent;
   color: oklch(0.82 0.13 25);
@@ -750,12 +733,10 @@ label {
   justify-content: center;
   gap: 0.6rem;
   direction: ltr;
-  /* 2/8 is narrower than 16/11, which moved the arrows every time the week
-     changed. The font is monospace, so 1ch is one character: the longest the
-     label ever gets is dd/mm - dd/mm, which is 13 characters plus the padding
-     on both sides, and that comes to 18ch. Half a ch on top so a fallback font
-     cannot clip it. Nothing wider than that - the arrows only need to stop
-     moving, not spread out. */
+  /* Holds the label at one width so the arrows never move. The font is
+     monospace, so 1ch is one character: the longest the label ever gets is
+     dd/mm - dd/mm, which is 13 characters plus the padding on both sides, and
+     that comes to 18ch. Half a ch on top so a fallback font cannot clip it. */
   min-width: 18.5ch;
   padding: 0.42rem 0.9rem;
   font-family: 'IBM Plex Mono', monospace;
@@ -808,26 +789,23 @@ label {
   gap: 0.5rem;
 }
 
-/* A draft has two buttons here and a published week has none, so without this
-   the row was 37px on one week and 30px on the next, and the grid below it
-   jumped every time you paged across. Everything on the row is one height now,
-   so the row is the same whatever the status. */
+/* Pins everything on the row to one height, since a draft has two buttons here
+   and a published week has none. */
 .week-nav,
 .week-status,
 .week-actions button {
   min-height: var(--control-h);
 }
 
-/* The employee picker on the constraints screen. Inputs carry more padding than
-   buttons do, so it came out taller than everything next to it - a floor would
-   not bring it down, it has to be pinned. */
+/* Pins the employee picker to the row height, since an input carries more
+   padding than a button and would sit taller than everything next to it. */
 .week-actions select {
   height: var(--control-h);
   padding-block: 0;
 }
 
 /* ----- summary cards -----
-   Values must be derived from the coverage response, never hardcoded. */
+   The values come from the coverage response. */
 
 .summary {
   display: grid;
@@ -929,8 +907,8 @@ label {
   border-bottom: none;
 }
 
-/* One uniform rule between day columns. No weekend tint, no heavier divider —
-   both were tried and read as a mistake. */
+/* Draws one uniform rule between day columns, with no weekend tint and no
+   heavier divider. */
 .grid thead th + th,
 .grid tbody td {
   border-inline-start: 1px solid var(--line);
@@ -1082,9 +1060,6 @@ label {
 }
 
 .pref-reason {
-  display: block;
-  font-size: 0.72rem;
-  opacity: 0.85;
   text-align: center;
 }
 
@@ -1209,8 +1184,8 @@ label {
 }
 
 /* ----- manager's grid cell -----
-   The coverage bar replaces the stack of slot rows. Every position shows a
-   label, a ratio and one bar; nothing repeats the same fact twice. */
+   Every position shows a label, a ratio and one bar, so nothing repeats the
+   same fact twice. */
 
 .slots {
   display: flex;
@@ -1238,8 +1213,8 @@ label {
   padding: 0;
 }
 
-/* A long job title would otherwise widen the column and push the ratio out of
-   line with the cells above it. */
+/* Cuts a long job title so the column keeps its width and the ratio stays in
+   line with the cells above. */
 .slot-position > span:first-child {
   min-width: 0;
   white-space: nowrap;
@@ -1309,11 +1284,6 @@ label {
   text-overflow: ellipsis;
 }
 
-/* The meter already shows the gap, so the placeholder is not drawn. */
-.slot-empty {
-  display: none;
-}
-
 .slot-more,
 .slot-extra {
   background: none;
@@ -1329,8 +1299,8 @@ label {
   color: var(--muted);
   padding: 0;
   font-size: 0.81rem;
-  /* Same as the filled cells - a long job title gets cut rather than pushing
-     the column out. Hovering shows the whole thing. */
+  /* Cuts a long job title rather than pushing the column out, and the whole
+     thing shows on hover. */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1573,7 +1543,7 @@ label {
 }
 
 /* ----- grid legend -----
-   Says out loud that red means an essential position with no coverage at all. */
+   Says that red means an essential position with no coverage at all. */
 
 .legend {
   display: flex;

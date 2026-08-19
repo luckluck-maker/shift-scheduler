@@ -1,11 +1,9 @@
-// A labelled input. Every form here is the same shape, so this keeps the
-// markup out of them.
-export default function Field({ label, error, children }) {
+// Wraps a label and an input together, since every form here is the same shape.
+export default function Field({ label, children }) {
     return (
         <label className="field">
             <span className="field-label">{label}</span>
             {children}
-            {error && <span className="field-error">{error}</span>}
         </label>
     )
 }

@@ -100,10 +100,9 @@ export default function ConstraintsPage() {
         }
 
         try {
-            // The overview needs the whole week's constraints rather than one
-            // person's, so it asks for them separately.
-            // In the all view this asks for the manager's own week. Only the shifts
-            // are taken from it, the constraints come from the second call.
+            // Asks for the manager's own week in the overview and takes only the
+            // shifts from it, since the constraints for everyone come from the
+            // second call.
             const query = isManager && employeeId !== ALL ? `?employeeId=${employeeId}` : ''
 
             const calls = [api.get(`/api/schedules/${week.id}/my-week${query}`)]
@@ -378,8 +377,8 @@ function SelectionPanel({ shifts, busy, onType, onReason }) {
                     <input
                         value={reason}
                         disabled={busy}
-                        /* The server takes 255 characters. Cut here so the request
-                           isn't sent to fail. */
+                        /* Cuts the reason at 255 characters, the same limit the
+                           server takes. */
                         maxLength={255}
                         placeholder="רשות"
                         onChange={(e) => setReason(e.target.value)}

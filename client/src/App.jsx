@@ -13,6 +13,8 @@ import ScheduleBuilderPage from './pages/ScheduleBuilderPage'
 export default function App() {
     return (<BrowserRouter>
         <AuthProvider>
+            {/* Wraps every route except the login screen in ProtectedRoute, and
+                adds a second one on the manager-only pages. */}
             <Routes>
                 <Route path="/login" element={<LoginPage/>}/>
                 <Route element={<ProtectedRoute><Layout/></ProtectedRoute>}>

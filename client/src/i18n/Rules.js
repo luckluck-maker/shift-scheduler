@@ -1,5 +1,5 @@
-// As the server responses in English and the website in Hebrew
-// using this to translate the responses to Hebrew
+// The server responds in English and the website is in Hebrew, so this
+// translates the rules.
 export const RULE_TEXT = {
     REST_PERIOD: 'פחות מ-8 שעות מנוחה',
     ONE_SHIFT_PER_DAY: 'כבר משובץ באותו יום',
@@ -11,8 +11,8 @@ export const RULE_TEXT = {
     NO_MATCHING_REQUIREMENT: 'המשמרת אינה דורשת תפקיד זה',
 }
 
-// The confirmation rules that make changes, would ensure the manager is aware.
-// (overtime for example is not included as it doesn't change anything)
+// The overridable rules that change data, so the manager knows what will
+// happen. Overtime is not included because nothing changes.
 export const RULE_CONSEQUENCE = {
     EMPLOYEE_ON_LEAVE: 'יום החופשה יימחק',
     EMPLOYEE_CANNOT_WORK: 'האילוץ שהעובד הגיש יימחק',

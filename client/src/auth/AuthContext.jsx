@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null)
     const [loading, setLoading] = useState(true)
 
+    // Asks the server who this is, since the cookie can't be read from here.
     useEffect(() => {
         api.get('/api/auth/me')
             .then(setUser)
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
     async function login(username, password) {
         const result = await api.post('/api/auth/login', { username, password })
 
+        // Keeps the profile only, the token is handled by the cookie.
         setUser({
             employeeId: result.employeeId,
             username: result.username,
@@ -25,6 +27,8 @@ export function AuthProvider({ children }) {
         })
     }
 
+    // Clears the user even if the request failed, so the screen doesn't stay
+    // signed in.
     async function logout() {
         try {
             await api.post('/api/auth/logout')

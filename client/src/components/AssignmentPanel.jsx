@@ -15,6 +15,8 @@ export default function AssignmentPanel({ shift, coverage, scheduleVersion, onCh
     const [busy, setBusy] = useState(false)
     const [pending, setPending] = useState(null)
 
+    // Reloads the list after every change, since assigning someone can put them
+    // over a rule that the list has to show.
     useEffect(() => {
         setChosen('')
 
@@ -23,6 +25,8 @@ export default function AssignmentPanel({ shift, coverage, scheduleVersion, onCh
             .catch(() => onError('לא הצלחנו לטעון את רשימת העובדים'))
     }, [shift.id, coverage])
 
+    // Sends override false first, and again with true only after the manager
+    // confirms the dialog.
     async function assign(override) {
         setBusy(true)
 
@@ -54,6 +58,9 @@ export default function AssignmentPanel({ shift, coverage, scheduleVersion, onCh
             return
         }
 
+        // A blocking rule can't be overridden, so the reason is shown instead of
+        // the dialog. This happens when another manager assigned the same person
+        // while the list was open.
         if (body.blocking?.length > 0) {
             onError(body.blocking.map((violation) => ruleText(violation.rule)).join(' · '))
             return
@@ -144,6 +151,7 @@ function label(person) {
         : person.fullName
 }
 
+// Groups the candidates by position so the dropdown shows a heading for each one.
 function group(candidates) {
     const byPosition = new Map()
 
@@ -178,8 +186,8 @@ function OverrideDialog({ violations, busy, onClose, onConfirm }) {
     )
 }
 
-// Same order as the grid, so the two can be read against each other. Anyone
-// holding a position the shift never asked for goes last, as they do there.
+// Sorts the people the same way the grid does, and puts anyone holding a
+// position the shift hasn't required last.
 function sortByPosition(coverage) {
     const order = coverage.positions.map((position) => position.jobPositionId)
 
@@ -191,9 +199,8 @@ function sortByPosition(coverage) {
     })
 }
 
-// Somebody the shift doesn't ask for. Counted rather than read off the
-// assignment: lowering a requirement after people were assigned leaves the
-// flag alone, and the grid counts the same way.
+// Marks a person extra when the shift has no requirement for their position,
+// or when the people before them already fill it.
 function isExtra(assignment, list, coverage) {
     const position = coverage.positions.find(
         (candidate) => candidate.jobPositionId === assignment.jobPositionId)

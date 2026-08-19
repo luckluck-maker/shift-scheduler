@@ -237,8 +237,7 @@ export default function ScheduleBuilderPage() {
     }
 
     // NOT_SOLVING comes back both before the solver has picked the job up and
-    // after it's done, so the first check waits a moment. Without that the
-    // screen would decide it had finished before it started.
+    // after it's done, so the first check waits a moment.
     async function waitForSolver() {
         await pause(700)
 

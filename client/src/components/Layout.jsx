@@ -1,8 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
-// The frame every signed-in screen sits inside: the side bar and the menu.
-// Outlet is where the routed page gets rendered.
+// Frames every signed-in screen with the side bar and the menu, and renders
+// the routed page into Outlet. The side bar carries the class name topbar.
 export default function Layout() {
     const { user, logout, isManager } = useAuth()
 
