@@ -39,7 +39,6 @@ public class EmployeeMailer {
     public void sendSchedulePublished(Schedule schedule) {
         String weekStart = schedule.getWeekStart().format(DATE);
         // Only the start is stored. A week is always seven days.
-        // Only the start is stored. A week is always seven days.
         String weekEnd = schedule.getWeekStart().plusDays(6).format(DATE);
 
         int sent = 0;
@@ -57,7 +56,6 @@ public class EmployeeMailer {
     // The mail doesn't list the changes, it says to sign in and look.
     public void sendRosterChanged(Schedule schedule, List<Employee> employees) {
         String weekStart = schedule.getWeekStart().format(DATE);
-        // Only the start is stored. A week is always seven days.
         // Only the start is stored. A week is always seven days.
         String weekEnd = schedule.getWeekStart().plusDays(6).format(DATE);
 

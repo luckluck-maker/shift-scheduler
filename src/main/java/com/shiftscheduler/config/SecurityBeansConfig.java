@@ -35,7 +35,7 @@ public class SecurityBeansConfig {
         this.jwtKey = new SecretKeySpec(bytes, "HmacSHA256");
     }
     // For password hashing I've chosen Argon2 as it is deliberately slow and memory hungry, which
-    // providers a good defense against brute force attacks.
+    // provides a good defense against brute force attacks.
     // The static factory picks the parameters Spring recommends.
     @Bean
     public PasswordEncoder passwordEncoder() {

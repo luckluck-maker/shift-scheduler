@@ -170,8 +170,8 @@ public class EmployeeService {
     }
 
     // A PUT sends every field, including ones the user didn't touch.
-    // Without this check, fixing a name would also write back the old hours
-    // and undo someone else's change.
+    // The check stops a name fix from writing back the old hours and undoing
+    // someone else's change.
     private void requireCurrentVersion(Employee employee, Long expected) {
         if (expected != employee.getVersion()) {
             throw new ConflictException(

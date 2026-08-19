@@ -42,7 +42,7 @@ public class AuthService {
 
         if (found.isEmpty()) {
             // Hashed anyway so a wrong username takes as long as a wrong password.
-            // Without it the quick answer would tell an attacker the user doesn't exist.
+            // A quick answer would tell an attacker the user doesn't exist.
             passwordEncoder.encode(request.password());
             throw new InvalidCredentialsException("Invalid username or password");
         }

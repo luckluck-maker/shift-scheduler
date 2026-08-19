@@ -69,8 +69,8 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // The token says "role": "MANAGER". Spring wants ROLE_MANAGER. Without
-    // this bridge every hasRole check fails.
+    // The token says "role": "MANAGER" and Spring wants ROLE_MANAGER, so this
+    // bridges the two for every hasRole check.
     @Bean
     JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();

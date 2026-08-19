@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public class ScheduleLoader {
 
     // The last day of the previous week. A Saturday night shift ends on Sunday
-    // morning, which is the overlap the rest rule would otherwise miss.
+    // morning, so the rest rule needs it to catch the overlap.
     private static final int LOOKBACK_DAYS = 1;
     // Only used when a schedule has no shifts to measure.
     private static final int DEFAULT_SHIFT_MINUTES = 8 * 60;

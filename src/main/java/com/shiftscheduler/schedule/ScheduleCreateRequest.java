@@ -12,7 +12,7 @@ public record ScheduleCreateRequest(
         @NotNull
         LocalDate weekStart,
 
-        // Optional. Without it the manager closes submissions by hand.
+        // Optional, and the manager closes submissions by hand when it is left out.
         Instant submissionClosesAt
 
 ) {
