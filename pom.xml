@@ -51,6 +51,7 @@
             <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
 
+        <!-- MySQL support, separate from the Flyway starter. -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-mysql</artifactId>
@@ -66,6 +67,7 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Only for JwtEncoder and JwtDecoder. No external login provider. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
@@ -77,6 +79,7 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- The Argon2 implementation. No file imports it. -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
@@ -98,6 +101,7 @@
 
     <build>
         <plugins>
+            <!-- Builds the React client into client/dist. -->
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
@@ -142,6 +146,7 @@
                 </executions>
             </plugin>
 
+            <!-- The built client into static, where Spring serves it. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -163,6 +168,7 @@
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
