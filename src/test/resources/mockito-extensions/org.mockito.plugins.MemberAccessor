@@ -1,0 +1,2 @@
+# Plain reflection, which needs no Java agent.
+member-accessor-reflection
