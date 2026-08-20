@@ -19,8 +19,11 @@
 
     <properties>
         <java.version>21</java.version>
-        <node.version>v22.11.0</node.version>
-        <npm.version>10.9.0</npm.version>
+        <!-- Keep this at 22.12 or higher. The client build needs a rolldown
+             binary that npm skips on older versions, and the build then
+             fails without it. -->
+        <node.version>v22.20.0</node.version>
+        <npm.version>10.9.3</npm.version>
     </properties>
 
     <dependencies>
