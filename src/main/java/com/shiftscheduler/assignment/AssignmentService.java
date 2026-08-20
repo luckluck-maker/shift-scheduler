@@ -42,7 +42,7 @@ public class AssignmentService {
     private final EmployeeLeaveRepository leaveRepository;
     private final ShiftPreferenceRepository preferenceRepository;
     private final RosterChangeRepository rosterChangeRepository;
-    private final ScheduleRules rules;
+    private final ManualRules rules;
     private final ScheduleGuard guard;
 
     public AssignmentService(AssignmentRepository assignmentRepository,
@@ -52,7 +52,7 @@ public class AssignmentService {
                              EmployeeLeaveRepository leaveRepository,
                              ShiftPreferenceRepository preferenceRepository,
                              RosterChangeRepository rosterChangeRepository,
-                             ScheduleRules rules,
+                             ManualRules rules,
                              ScheduleGuard guard) {
         this.assignmentRepository = assignmentRepository;
         this.shiftRepository = shiftRepository;
@@ -92,7 +92,7 @@ public class AssignmentService {
 
         if (noSlot) {
             violations.add(RuleViolation.overridable(
-                    ScheduleRules.RULE_NO_SLOT,
+                    ManualRules.RULE_NO_SLOT,
                     "This shift has no open slot for " + employee.getJobPosition().getName(),
                     "The assignment will not count towards the staffing requirement"));
         }
@@ -143,13 +143,13 @@ public class AssignmentService {
 
         for (RuleViolation violation : overridable) {
             switch (violation.rule()) {
-                case ScheduleRules.RULE_ON_LEAVE -> {
+                case ManualRules.RULE_ON_LEAVE -> {
                     leaveRepository
                             .findByEmployeeIdAndLeaveDate(employee.getId(), shift.getShiftDate())
                             .ifPresent(leaveRepository::delete);
                     applied.add("Removed the leave on " + shift.getShiftDate());
                 }
-                case ScheduleRules.RULE_CANNOT_WORK -> {
+                case ManualRules.RULE_CANNOT_WORK -> {
                     preferenceRepository
                             .findByShiftScheduleIdAndEmployeeIdOrderByShiftShiftDateAscIdAsc(
                                     shift.getSchedule().getId(), employee.getId())
@@ -159,9 +159,9 @@ public class AssignmentService {
                             .ifPresent(preferenceRepository::delete);
                     applied.add("Removed the stated constraint for this shift");
                 }
-                case ScheduleRules.RULE_NO_SLOT ->
+                case ManualRules.RULE_NO_SLOT ->
                         applied.add("Assigned beyond the staffing requirement");
-                case ScheduleRules.RULE_WEEKLY_HOURS ->
+                case ManualRules.RULE_WEEKLY_HOURS ->
                         applied.add("Accepted the overtime beyond the contract");
                 default -> { }
             }

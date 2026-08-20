@@ -12,7 +12,7 @@ import com.shiftscheduler.web.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.shiftscheduler.domain.SchedulingRules;
+import com.shiftscheduler.domain.RuleConstants;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -111,7 +111,7 @@ public class ScheduleLoader {
                             employee.getFullName(),
                             employee.getJobPosition().getId(),
                             Math.max(0, contracted - away),
-                            SchedulingRules.minimumShiftsWith(away));
+                            RuleConstants.minimumShiftsWith(away));
                 })
                 .collect(Collectors.toMap(PlanningEmployee::getId, Function.identity()));
     }
