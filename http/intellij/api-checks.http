@@ -1,0 +1,1192 @@
+### ===========================================================
+###  Shift Scheduler — API checks
+###
+###  Every request carries the token by hand.
+###  The HTTP Client reads Max-Age as milliseconds, so the cookie expires
+###  after 28 seconds instead of 8 hours.
+###  https://youtrack.jetbrains.com/issue/IJPL-208287
+###
+###  Sends every endpoint at least once and takes a week from COLLECTING
+###  to PUBLISHED. Copying a week, the submission deadline and the solver
+###  are left to the other four files.
+###
+###  The week built here starts on 23 Aug and gets id 4, so it sits on top
+###  of the three the seed puts in and its shifts are 64 to 84: 64 is the
+###  Sunday morning, 65 the evening, 66 the night, 67 the Monday morning,
+###  and so on in threes.
+###
+###  HOW TO RUN
+###  Rebuild the database:
+###      docker compose down -v
+###      docker compose up -d      (wait for healthy)
+###      restart the app           (Flyway rebuilds the schema on startup)
+###  Send the requests one at a time, because a full run of the file
+###  ignores the waits that the STOP notes ask for.
+###  Rebuild again before the next run, because the file creates a job
+###  position and an employee that a second run would find already there.
+###
+###  Schedule lifecycle: COLLECTING -> DRAFT -> PUBLISHED
+###      COLLECTING  employees submit constraints, no assignment
+###      DRAFT       submission closed, the manager assigns
+###      PUBLISHED   planning is done, manual assignment still allowed
+###
+###  IMPORTANT — version numbers
+###  Every change to a schedule raises its version, so a request that locks,
+###  publishes, assigns or edits requirements has to send the current one.
+###  The numbers here are what a clean run produces. If one comes back "The
+###  schedule was changed by someone else", read the version from the
+###  response before it and send that.
+###
+###  [MAILHOG] marks a step to check in the mailbox at
+###  http://localhost:8025.
+### ===========================================================
+
+
+### ===========================================================
+### 1 — NO SESSION
+### ===========================================================
+
+### 1.1 Health check — expect 200
+# @name 1.1 Health check — expect 200
+GET http://localhost:8080/api/health
+
+### 1.2 Current user without a session — expect 401
+GET http://localhost:8080/api/auth/me
+
+### 1.3 Wrong password — expect 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123X"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 1.4 Disabled account — expect 401 with code ACCOUNT_DISABLED
+###     A wrong password has no code, so the screen can tell the two apart
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "avi@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+
+### 1.5 An address nobody has — expect 401 with no code
+###     Answers exactly like a wrong password, so the screen gives away
+###     nothing about who has an account
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "nobody@shiftscheduler.local", "password": "password123"}
+
+
+### ===========================================================
+### 2 — MANAGER: SETUP
+### ===========================================================
+
+### 2.0 Log in as manager — expect 200
+# @name 2.0 Log in as manager — expect 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 2.1 Current user — expect 200, role MANAGER
+GET http://localhost:8080/api/auth/me
+Cookie: access_token={{token}}
+
+
+### ----- 2.2 JOB POSITIONS -----
+
+### 2.2.1 List — expect 200, three positions
+# @name 2.2.1 List — expect 200, three positions
+GET http://localhost:8080/api/job-positions
+Cookie: access_token={{token}}
+
+### 2.2.2 Create — expect 201
+POST http://localhost:8080/api/job-positions
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "ראש צוות"}
+
+### 2.2.3 Duplicate name — expect 409
+POST http://localhost:8080/api/job-positions
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "נציג תמיכה"}
+
+### 2.2.4 Empty name — expect 400
+POST http://localhost:8080/api/job-positions
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": ""}
+
+### 2.2.5 Rename the one just created — expect 200
+PUT http://localhost:8080/api/job-positions/4
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "מנהל צוות"}
+
+### 2.2.6 Delete a position in use — expect 409
+DELETE http://localhost:8080/api/job-positions/1
+Cookie: access_token={{token}}
+
+### 2.2.7 Unknown id — expect 404
+GET http://localhost:8080/api/job-positions/999
+Cookie: access_token={{token}}
+
+
+### ----- 2.3 SHIFT TYPES -----
+
+### 2.3.1 List — expect 200, Night has crossesMidnight true and 8 hours
+# @name 2.3.1 List — expect 200, Night has crossesMidnight true and 8 hours
+GET http://localhost:8080/api/shift-types
+Cookie: access_token={{token}}
+
+### 2.3.2 Create one crossing midnight — expect 201, durationHours 8
+POST http://localhost:8080/api/shift-types
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "לילה מאוחר", "startTime": "22:00", "endTime": "06:00"}
+
+### 2.3.3 Read the one just created — expect 200
+GET http://localhost:8080/api/shift-types/4
+Cookie: access_token={{token}}
+
+### 2.3.4 Rename it — expect 200, the hours are unchanged so the row stays
+PUT http://localhost:8080/api/shift-types/4
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "לילה מאוחר", "startTime": "23:30", "endTime": "07:30"}
+
+### 2.3.5 Delete it — expect 204
+###       No week uses it yet, so nothing goes with it
+DELETE http://localhost:8080/api/shift-types/4
+Cookie: access_token={{token}}
+
+### 2.3.6 Same start and end — expect 400
+POST http://localhost:8080/api/shift-types
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "לא תקין", "startTime": "08:00", "endTime": "08:00"}
+
+
+### ----- 2.4 EMPLOYEES -----
+
+### 2.4.1 List — expect 200, ten employees
+# @name 2.4.1 List — expect 200, ten employees
+GET http://localhost:8080/api/employees
+Cookie: access_token={{token}}
+
+### 2.4.2 Create — expect 201
+POST http://localhost:8080/api/employees
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"fullName": "רוני כץ", "username": "roni@shiftscheduler.local", "password": "password123",
+  "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 2}
+
+### 2.4.3 Duplicate username — expect 409
+POST http://localhost:8080/api/employees
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"fullName": "כפול", "username": "maya@shiftscheduler.local", "password": "password123",
+  "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 2}
+
+### 2.4.4 Unknown job position — expect 404
+POST http://localhost:8080/api/employees
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"fullName": "רפאים", "username": "ghost@shiftscheduler.local", "password": "password123",
+  "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 999}
+
+### 2.4.5 Change the password of the one just created — expect 204
+PUT http://localhost:8080/api/employees/11/password
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"newPassword": "anotherpassword"}
+
+### 2.4.6 A username that is not an email — expect 400
+POST http://localhost:8080/api/employees
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"fullName": "שגוי", "username": "not-an-email", "password": "password123",
+  "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 2}
+
+### 2.4.7 Password too short — expect 400
+POST http://localhost:8080/api/employees
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"fullName": "קצר", "username": "shorty@shiftscheduler.local", "password": "123",
+  "role": "EMPLOYEE", "maxWeeklyHours": 40, "jobPositionId": 2}
+
+
+### ----- 2.5 OPTIMISTIC LOCKING ON AN EMPLOYEE -----
+### A PUT carries every field, so an update built on a stale copy carries
+### the values as they were when the form was opened.
+
+### 2.5.1 Read Maya — expect 200, version 0 and 40 hours
+# @name 2.5.1 Read Maya — expect 200, version 0 and 40 hours
+GET http://localhost:8080/api/employees/3
+Cookie: access_token={{token}}
+
+### 2.5.2 Manager A cuts her hours to 32, sending version 0
+###       expect 200, version becomes 1
+PUT http://localhost:8080/api/employees/3
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "fullName": "מאיה כהן", "role": "EMPLOYEE",
+  "maxWeeklyHours": 32, "jobPositionId": 2}
+
+### 2.5.3 Manager B still holds version 0 and only meant to fix the name
+###       expect 409 — the check stops the 40 hours coming back
+PUT http://localhost:8080/api/employees/3
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "fullName": "מאיה כהן-לוי", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 2}
+
+### 2.5.4 Reload — expect 200, version 1 and 32 hours
+GET http://localhost:8080/api/employees/3
+Cookie: access_token={{token}}
+
+### 2.5.5 Retry with version 1, keeping the 32 hours — expect 200
+###       The version stays at 1, because Hibernate raises it when a field
+###       is written to and this sends the values back unchanged
+PUT http://localhost:8080/api/employees/3
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 1, "fullName": "מאיה כהן", "role": "EMPLOYEE",
+  "maxWeeklyHours": 32, "jobPositionId": 2}
+
+### 2.5.6 Put her back to 40 for the rest of the run — expect 200
+###       version 1 again, and this one does change a field
+PUT http://localhost:8080/api/employees/3
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 1, "fullName": "מאיה כהן", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 2}
+
+
+### ----- 2.6 THE LAST MANAGER CANNOT BE REMOVED -----
+### Dana is the only manager. Standing her down and demoting her are both
+### refused, and the count is read under a write lock so two demotions
+### arriving together cannot both pass.
+
+### 2.6.1 Stand her down — expect 400
+# @name 2.6.1 Stand her down — expect 400
+DELETE http://localhost:8080/api/employees/1?version=0
+Cookie: access_token={{token}}
+
+### 2.6.2 Read Dana — expect 200, note the version
+GET http://localhost:8080/api/employees/1
+Cookie: access_token={{token}}
+
+### 2.6.3 Demote her to EMPLOYEE — expect 400
+PUT http://localhost:8080/api/employees/1
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "fullName": "דנה לוי", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 1}
+
+### 2.6.4 Promote Yoni — expect 200, now there are two managers
+PUT http://localhost:8080/api/employees/2
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "fullName": "יוני ברק", "role": "MANAGER",
+  "maxWeeklyHours": 40, "jobPositionId": 1}
+
+### 2.6.5 Now Dana can be demoted — expect 200
+PUT http://localhost:8080/api/employees/1
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "fullName": "דנה לוי", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 1}
+
+### 2.6.6 And Yoni, now the only one, cannot — expect 400
+PUT http://localhost:8080/api/employees/2
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 1, "fullName": "יוני ברק", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 1}
+
+### 2.6.7 Dana is an employee now, so restoring her needs Yoni's session
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "yoni@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 2.6.8 Restore Dana as manager — expect 200
+PUT http://localhost:8080/api/employees/1
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 1, "fullName": "דנה לוי", "role": "MANAGER",
+  "maxWeeklyHours": 40, "jobPositionId": 1}
+
+### 2.6.9 Demote Yoni back — expect 200
+PUT http://localhost:8080/api/employees/2
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 1, "fullName": "יוני ברק", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 1}
+
+### 2.6.10 Stand the new employee down — expect 204
+DELETE http://localhost:8080/api/employees/11?version=1
+Cookie: access_token={{token}}
+
+### 2.6.11 And bring them back — expect 200, active true again
+PUT http://localhost:8080/api/employees/11/activate?version=2
+Cookie: access_token={{token}}
+
+### 2.6.12 Back to Dana's session
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+
+### ----- 2.7 LEAVES -----
+
+### 2.7.1 Omer on leave 24-26 Aug — expect 201, one range of 3 days
+# @name 2.7.1 Omer on leave 24-26 Aug — expect 201, one range of 3 days
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"employeeId": 4, "startDate": "2026-08-24", "endDate": "2026-08-26", "type": "VACATION"}
+
+### 2.7.2 Overlapping range — expect 409
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"employeeId": 4, "startDate": "2026-08-26", "endDate": "2026-08-28", "type": "SICK"}
+
+### 2.7.3 A range longer than a year — expect 400
+###       Guards against a mistyped year, since a row is saved per day
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"employeeId": 4, "startDate": "2026-09-01", "endDate": "2027-10-01", "type": "VACATION"}
+
+### 2.7.4 End before start — expect 400
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"employeeId": 4, "startDate": "2026-09-04", "endDate": "2026-09-02", "type": "SICK"}
+
+### 2.7.5 List — expect 200, Omer's new range beside the three the
+###       seed put in the weeks before this one
+GET http://localhost:8080/api/leaves
+Cookie: access_token={{token}}
+
+### 2.7.6 A range for Shira — expect 201
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"employeeId": 5, "startDate": "2026-09-07", "endDate": "2026-09-08", "type": "SICK"}
+
+### 2.7.7 List again — read the id of Shira's first day
+GET http://localhost:8080/api/leaves
+Cookie: access_token={{token}}
+
+### 2.7.8 Remove that one day by id — expect 204
+###       A range is stored a row per day, so the other one stays
+###       Replace the id with the one 2.7.7 returned
+DELETE http://localhost:8080/api/leaves/11
+Cookie: access_token={{token}}
+
+### 2.7.9 Remove what is left of the range — expect 204
+###       This one takes dates rather than an id, the way the screen does it
+DELETE http://localhost:8080/api/leaves?employeeId=5&from=2026-09-07&to=2026-09-08
+Cookie: access_token={{token}}
+
+### 2.7.10 List again — expect 200, Shira is back to the day the seed gave her
+GET http://localhost:8080/api/leaves
+Cookie: access_token={{token}}
+
+
+### ===========================================================
+### 3 — CREATING A WEEK (status COLLECTING)
+### ===========================================================
+
+### 3.1 Create the week of 23 Aug — expect 201, 21 shifts,
+###     status COLLECTING, version 0
+# @name 3.1 Create the week of 23 Aug — expect 201, 21 shifts,
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{
+  "weekStart": "2026-08-23",
+  "shifts": [
+    { "shiftTypeId": 1, "requirements": [
+      {"jobPositionId": 1, "requiredCount": 1},
+      {"jobPositionId": 2, "requiredCount": 2}
+    ]},
+    { "shiftTypeId": 2, "requirements": [
+      {"jobPositionId": 2, "requiredCount": 2}
+    ]},
+    { "shiftTypeId": 3, "requirements": [
+      {"jobPositionId": 2, "requiredCount": 1}
+    ]}
+  ]
+}
+
+### 3.2 List — expect 200, status COLLECTING
+GET http://localhost:8080/api/schedules
+Cookie: access_token={{token}}
+
+### 3.3 Detail — expect 200, shifts from 2026-08-23 to 2026-08-29
+GET http://localhost:8080/api/schedules/4
+Cookie: access_token={{token}}
+
+### 3.8 Assigning while COLLECTING — expect 409, wrong status
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 64, "employeeId": 3, "override": false, "scheduleVersion": 3}
+
+
+### ----- 3.9 OPTIMISTIC LOCKING ON REQUIREMENTS -----
+
+### 3.9.1 Edit requirements with the current version 0 — expect 200
+###       This raises the version to 1
+# @name 3.9.1 Edit requirements with the current version 0 — expect 200
+PUT http://localhost:8080/api/schedules/4/shifts/64/requirements
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "requirements": [
+  {"jobPositionId": 1, "requiredCount": 1},
+  {"jobPositionId": 2, "requiredCount": 3},
+  {"jobPositionId": 3, "requiredCount": 1}
+]}
+
+### 3.9.2 Send version 0 again — expect 409, someone else changed it
+###       This is the stale-client case
+PUT http://localhost:8080/api/schedules/4/shifts/64/requirements
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "requirements": [{"jobPositionId": 2, "requiredCount": 2}]}
+
+### 3.9.3 Read the current version — expect 200, version 1
+GET http://localhost:8080/api/schedules/4
+Cookie: access_token={{token}}
+
+### 3.9.4 Retry with version 1 — expect 200, version becomes 2
+PUT http://localhost:8080/api/schedules/4/shifts/64/requirements
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 1, "requirements": [
+  {"jobPositionId": 1, "requiredCount": 1},
+  {"jobPositionId": 2, "requiredCount": 3},
+  {"jobPositionId": 3, "requiredCount": 1}
+]}
+
+### 3.9.5 Clear the requirements of the last shift — expect 204
+###       This raises the version to 4
+POST http://localhost:8080/api/schedules/4/requirements/clear
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 2, "shiftIds": [84]}
+
+### 3.9.6 Same job position twice — expect 400
+PUT http://localhost:8080/api/schedules/4/shifts/64/requirements
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 3, "requirements": [
+  {"jobPositionId": 2, "requiredCount": 1},
+  {"jobPositionId": 2, "requiredCount": 2}
+]}
+
+### 3.9.7 Unknown shift — expect 404
+PUT http://localhost:8080/api/schedules/4/shifts/999/requirements
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 3, "requirements": [{"jobPositionId": 2, "requiredCount": 1}]}
+
+
+### ----- 3.10 MANAGER SUBMITS ON BEHALF OF AN EMPLOYEE -----
+
+### 3.10.1 Maya cannot work the Sunday evening — expect 201
+# @name 3.10.1 Maya cannot work the Sunday evening — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 65, "type": "CANNOT", "reason": "אירוע משפחתי", "employeeId": 3}
+
+### 3.10.2 All preferences — expect 200, one entry
+GET http://localhost:8080/api/shift-preferences?scheduleId=4
+Cookie: access_token={{token}}
+
+### 3.10.3 Filtered to one employee — expect 200, same entry
+GET http://localhost:8080/api/shift-preferences?scheduleId=4&employeeId=3
+Cookie: access_token={{token}}
+
+
+### ===========================================================
+### 4 — EMPLOYEE, WHILE SUBMISSION IS OPEN
+### ===========================================================
+
+### 4.0 Log in as maya — expect 200
+# @name 4.0 Log in as maya — expect 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "maya@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 4.1 Current user — expect 200, role EMPLOYEE
+GET http://localhost:8080/api/auth/me
+Cookie: access_token={{token}}
+
+### 4.2 My week — expect 200, 21 shifts, submissionOpen true
+###     The Sunday evening carries the CANNOT the manager entered in 3.10.1
+GET http://localhost:8080/api/schedules/4/my-week
+Cookie: access_token={{token}}
+
+### 4.3 Submit for the Monday evening — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 68, "type": "PREFERS_NOT", "reason": "נסיעה ארוכה"}
+
+### 4.4 Same shift twice — expect 409
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 68, "type": "CANNOT"}
+
+### 4.5 Submit on behalf of employee 4 — expect 403
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 69, "type": "CANNOT", "employeeId": 4}
+
+### 4.6 My preferences — expect 200, two entries
+GET http://localhost:8080/api/shift-preferences?scheduleId=4
+Cookie: access_token={{token}}
+
+### 4.7 Filter by another employee — expect the same two entries
+GET http://localhost:8080/api/shift-preferences?scheduleId=4&employeeId=4
+Cookie: access_token={{token}}
+
+### 4.8 Roster before publishing — expect 200, published false, shifts empty
+###     The week is visible, the assignments are not
+GET http://localhost:8080/api/schedules/4/roster
+Cookie: access_token={{token}}
+
+### 4.9 The full schedule — expect 403
+###     The manager view carries every employee and every assignment, so it
+###     is closed to employees at any status. 4.8 is the view Maya gets.
+GET http://localhost:8080/api/schedules/4
+Cookie: access_token={{token}}
+
+
+### ----- 4.10 EVERYTHING A MANAGER DOES IS REFUSED -----
+
+### 4.10.1 List employees — expect 403
+# @name 4.10.1 List employees — expect 403
+GET http://localhost:8080/api/employees
+Cookie: access_token={{token}}
+
+### 4.10.2 Create a job position — expect 403
+POST http://localhost:8080/api/job-positions
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "תפקיד חדש"}
+
+### 4.10.3 List leaves — expect 403
+GET http://localhost:8080/api/leaves
+Cookie: access_token={{token}}
+
+### 4.10.4 Lock the schedule — expect 403
+PUT http://localhost:8080/api/schedules/4/lock
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 3}
+
+### 4.10.5 Coverage — expect 403
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+### 4.10.6 Assign someone — expect 403
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 69, "employeeId": 3, "override": false, "scheduleVersion": 3}
+
+
+### ===========================================================
+### 5 — CLOSING SUBMISSION (COLLECTING -> DRAFT)
+### ===========================================================
+
+### 5.0 Back to the manager
+# @name 5.0 Back to the manager
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 5.1 Lock with a stale version — expect 409
+PUT http://localhost:8080/api/schedules/4/lock
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0}
+
+### 5.2 Lock with the current version 3 — expect 200, status DRAFT
+PUT http://localhost:8080/api/schedules/4/lock
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 3}
+
+### 5.3 Lock again — expect 409, it is no longer COLLECTING
+PUT http://localhost:8080/api/schedules/4/lock
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 4}
+
+### 5.4 The manager can still correct a constraint — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 71, "type": "CANNOT", "reason": "הוזן על ידי המנהל", "employeeId": 5}
+
+
+### ===========================================================
+### 6 — EMPLOYEE, AFTER SUBMISSION CLOSED
+### ===========================================================
+
+### 6.0 Log in as maya
+# @name 6.0 Log in as maya
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "maya@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 6.1 My week — expect 200, submissionOpen false
+GET http://localhost:8080/api/schedules/4/my-week
+Cookie: access_token={{token}}
+
+### 6.2 Submit a new constraint — expect 409, the window is closed
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 72, "type": "CANNOT"}
+
+### 6.3 Change an existing one — expect 409
+PUT http://localhost:8080/api/shift-preferences/17
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"type": "CANNOT", "reason": "שיניתי את דעתי"}
+
+### 6.4 Delete one — expect 409
+DELETE http://localhost:8080/api/shift-preferences/17
+Cookie: access_token={{token}}
+
+### 6.5 Roster while DRAFT — expect 200, published false, shifts empty
+GET http://localhost:8080/api/schedules/4/roster
+Cookie: access_token={{token}}
+
+### 6.6 The full schedule — expect 403, closed to her as it was in 4.9
+GET http://localhost:8080/api/schedules/4
+Cookie: access_token={{token}}
+
+
+### ===========================================================
+### 7 — MANUAL ASSIGNMENT (status DRAFT)
+### ===========================================================
+
+### 7.0 Back to the manager
+# @name 7.0 Back to the manager
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 7.1 Coverage before assigning — every shift short of staff
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+### 7.2 Who can work the Sunday morning — expect the full list
+GET http://localhost:8080/api/shifts/64/available-employees
+Cookie: access_token={{token}}
+
+### 7.3 Support agents only — expect the list filtered
+GET http://localhost:8080/api/shifts/64/available-employees?jobPositionId=2
+Cookie: access_token={{token}}
+
+### 7.4 Who can work the Sunday evening — Maya comes back with
+###     needsOverrideFor "Marked as unavailable", the CANNOT from 3.10.1
+GET http://localhost:8080/api/shifts/65/available-employees
+Cookie: access_token={{token}}
+
+### 7.5 Assign Maya to the Sunday morning — expect 201, no warnings
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 64, "employeeId": 3, "override": false, "scheduleVersion": 4}
+
+### 7.6 The same again — expect 409, already assigned
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 64, "employeeId": 3, "override": false, "scheduleVersion": 5}
+
+
+### ----- 7.7 OVERRIDABLE: LEAVE -----
+
+### 7.7.1 Assign Omer to the Monday morning, a day he is on leave
+###       expect 409, overridable EMPLOYEE_ON_LEAVE with a consequence
+# @name 7.7.1 Assign Omer to the Monday morning, a day he is on leave
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 67, "employeeId": 4, "override": false, "scheduleVersion": 5}
+
+### 7.7.2 Confirmed — expect 201, overridesApplied names the removed day
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 67, "employeeId": 4, "override": true, "scheduleVersion": 5}
+
+### 7.7.3 The leave now covers 25-26 Aug only — expect one range of 2 days
+GET http://localhost:8080/api/leaves
+Cookie: access_token={{token}}
+
+
+### ----- 7.8 BLOCKING: REST PERIOD -----
+
+### 7.8.1 Assign Eitan to the Sunday night — expect 201
+# @name 7.8.1 Assign Eitan to the Sunday night — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 66, "employeeId": 6, "override": false, "scheduleVersion": 6}
+
+### 7.8.2 And to the Monday morning, which starts eight hours later
+###       expect 409, blocking REST_PERIOD, empty overridable
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 67, "employeeId": 6, "override": false, "scheduleVersion": 7}
+
+### 7.8.3 The same with override — still 409
+###       A blocking rule cannot be bypassed
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 67, "employeeId": 6, "override": true, "scheduleVersion": 7}
+
+
+### ----- 7.9 OVERRIDABLE: NO OPEN SLOT -----
+
+### 7.9.1 Assign a senior agent to the Sunday night, which asks for an
+###       agent and no senior
+###       expect 409, overridable NO_MATCHING_REQUIREMENT
+# @name 7.9.1 Assign a senior agent to the Sunday night, which asks for an
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 66, "employeeId": 8, "override": false, "scheduleVersion": 7}
+
+### 7.9.2 Confirmed — expect 201 with override true on the assignment
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 66, "employeeId": 8, "override": true, "scheduleVersion": 7}
+
+
+### ----- 7.10 OVERRIDABLE: CONTRACTED HOURS -----
+### Noa is contracted for 24h, three 8-hour shifts.
+
+### 7.10.1 First shift — expect 201
+# @name 7.10.1 First shift — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 70, "employeeId": 7, "override": false, "scheduleVersion": 8}
+
+### 7.10.2 Second — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 73, "employeeId": 7, "override": false, "scheduleVersion": 9}
+
+### 7.10.3 Third, now at 24h — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 76, "employeeId": 7, "override": false, "scheduleVersion": 10}
+
+### 7.10.4 Fourth would take her to 32h
+###        expect 409, overridable MAX_WEEKLY_HOURS
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 79, "employeeId": 7, "override": false, "scheduleVersion": 11}
+
+### 7.10.5 Confirmed as overtime — expect 201
+###        overridesApplied is empty: nothing was changed, only allowed
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 79, "employeeId": 7, "override": true, "scheduleVersion": 11}
+
+
+### ----- 7.11 COVERAGE AND CLEARING -----
+
+### 7.11.1 Coverage after assigning — compare with 7.1
+# @name 7.11.1 Coverage after assigning — compare with 7.1
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+### 7.11.2 Unknown assignment — expect 404
+DELETE http://localhost:8080/api/assignments/999?version=12
+Cookie: access_token={{token}}
+
+### 7.11.3 Clear the assignments of one shift — expect 204
+POST http://localhost:8080/api/schedules/4/assignments/clear
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 12, "shiftIds": [64]}
+
+### 7.11.4 Clear every assignment in the schedule — expect 204
+DELETE http://localhost:8080/api/schedules/4/assignments?version=13
+Cookie: access_token={{token}}
+
+### 7.11.5 Coverage is back to empty — compare with 7.1
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+### 7.11.6 Assign Maya again so the published week is not empty — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 64, "employeeId": 3, "override": false, "scheduleVersion": 14}
+
+### 7.11.7 And Eitan on the Sunday evening — expect 201
+###        8.9 takes him off it once the week is published
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 65, "employeeId": 6, "override": false, "scheduleVersion": 15}
+
+### ----- 7.12 STANDING SOMEBODY DOWN RELEASES THEIR SHIFTS -----
+
+### 7.12.1 Put Shira on a shift — expect 201
+# @name 7.12.1 Put Shira on a shift — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 70, "employeeId": 5, "override": false, "scheduleVersion": 16}
+
+### 7.12.2 Read her version
+GET http://localhost:8080/api/employees/5
+Cookie: access_token={{token}}
+
+### 7.12.3 Stand her down — expect 204
+DELETE http://localhost:8080/api/employees/5?version=0
+Cookie: access_token={{token}}
+
+### 7.12.4 Coverage — the Tuesday morning has lost her
+###        The week is still a draft, so the assignment goes with her
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+### 7.12.5 Bring her back — expect 200
+PUT http://localhost:8080/api/employees/5/activate?version=1
+Cookie: access_token={{token}}
+
+### 7.12.6 Coverage — the shift is not given back
+###        The shift is not given back, the manager assigns her again
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+
+### ===========================================================
+### 8 — PUBLISHING (DRAFT -> PUBLISHED)
+### ===========================================================
+
+### 8.1 Read the current version before publishing
+# @name 8.1 Read the current version before publishing
+GET http://localhost:8080/api/schedules/4
+Cookie: access_token={{token}}
+
+### 8.2 Publish with a stale version — expect 409
+PUT http://localhost:8080/api/schedules/4/publish
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0}
+
+### 8.3 Publish with the version from 8.1 — expect 200, status PUBLISHED
+###     Replace the number below with what 8.1 returned
+PUT http://localhost:8080/api/schedules/4/publish
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 18}
+
+### 8.4 [MAILHOG] Every active employee has a mail waiting at
+###     http://localhost:8025 — publishing tells all of them, whether they
+###     are on a shift that week or not. The mail is in Hebrew and carries
+###     the address from app.url.
+
+### 8.5 Publish again — expect 409, no longer DRAFT
+# @name 8.5 Publish again — expect 409, no longer DRAFT
+PUT http://localhost:8080/api/schedules/4/publish
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 19}
+
+### 8.6 Edit requirements after publishing — expect 409
+PUT http://localhost:8080/api/schedules/4/shifts/64/requirements
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 19, "requirements": [{"jobPositionId": 2, "requiredCount": 5}]}
+
+### 8.7 Clear every assignment after publishing — expect 409
+###     Wiping a week people have already been told about is refused, and
+###     8.9 takes one assignment off it instead
+DELETE http://localhost:8080/api/schedules/4/assignments?version=19
+Cookie: access_token={{token}}
+
+### 8.8 A manager may still cover for somebody who called in sick
+###     expect 201. Manual assignment stays open after publishing, and
+###     Omer is a support agent so the Monday evening has a slot for him.
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 68, "employeeId": 4, "override": false, "scheduleVersion": 19}
+
+### 8.9 Take Eitan off the Sunday evening — expect 204
+###     Replace the id with the one 7.11.7 returned
+DELETE http://localhost:8080/api/assignments/76?version=20
+Cookie: access_token={{token}}
+
+### 8.10 Read the version, and note pendingChanges is above zero
+###      8.8 put Omer on one shift and 8.9 took Eitan off another, so two
+###      people are waiting to be told
+GET http://localhost:8080/api/schedules/4
+Cookie: access_token={{token}}
+
+### 8.11 Republish — expect 200, and MailHog gets one mail per person whose
+###      shifts changed, not one per employee
+PUT http://localhost:8080/api/schedules/4/republish
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 21}
+
+### ===========================================================
+###  STOP. Wait a few seconds before sending 8.12, because the mails leave
+###  on a queue and the list is emptied once they are out.
+### ===========================================================
+
+### 8.12 Republish again — expect 409, nothing is waiting now
+# @name 8.12 Republish again — expect 409, nothing is waiting now
+PUT http://localhost:8080/api/schedules/4/republish
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 22}
+
+
+### ===========================================================
+### 9 — EMPLOYEE, AFTER PUBLISHING
+### ===========================================================
+
+### 9.0 Log in as maya
+# @name 9.0 Log in as maya
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "maya@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 9.1 List schedules — expect 200, one entry
+###     Every employee may list the weeks, and 4.9 refused Maya the detail
+###     of one
+GET http://localhost:8080/api/schedules
+Cookie: access_token={{token}}
+
+### 9.2 The full schedule — expect 403
+###     Publishing changes what the roster shows, and the manager view
+###     stays closed at every status
+GET http://localhost:8080/api/schedules/4
+Cookie: access_token={{token}}
+
+### 9.3 Coverage — expect 403, a manager view as well
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+### 9.4 My week — expect 200, submissionOpen false
+GET http://localhost:8080/api/schedules/4/my-week
+Cookie: access_token={{token}}
+
+### 9.5 Roster after publishing — expect published true, 21 shifts,
+###     and the shift Maya is on carrying assignedToMe true with Maya
+###     flagged isMe true. Compare with 6.5, where the shifts came back
+###     empty.
+GET http://localhost:8080/api/schedules/4/roster
+Cookie: access_token={{token}}
+
+### 9.6 Submit a constraint — expect 409, still closed
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 74, "type": "CANNOT"}
+
+
+### ===========================================================
+### 11 — LOGOUT
+### ===========================================================
+
+### 11.1 Log out — expect 204
+# @name 11.1 Log out — expect 204
+POST http://localhost:8080/api/auth/logout
+Cookie: access_token={{token}}
+
+> {%
+    client.global.set("token", "");
+%}
+
+### 11.2 Current user — expect 401
+GET http://localhost:8080/api/auth/me
+Cookie: access_token={{token}}
+
+### 11.3 A protected endpoint — expect 401
+GET http://localhost:8080/api/job-positions
+Cookie: access_token={{token}}

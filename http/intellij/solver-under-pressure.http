@@ -1,0 +1,210 @@
+### ===========================================================
+###  Solver under pressure
+###
+###  Every request carries the token by hand.
+###  The HTTP Client reads Max-Age as milliseconds, so the cookie expires
+###  after 28 seconds instead of 8 hours.
+###  https://youtrack.jetbrains.com/issue/IJPL-208287
+###
+###  Two cases:
+###    A. not enough people, so slots have to stay empty
+###    B. a position nobody is allowed to cover
+###
+###  Both come back 0hard. Leaving a slot empty costs medium, which is
+###  cheaper than any hard penalty, and the manual rules never pin an
+###  assignment that breaks a hard rule.
+###
+###  The weeks here are built on top of the seed, so the week of 23 Aug
+###  holds shifts 64 to 84 and the week of 30 Aug holds 85 to 105. Each
+###  day runs morning, evening, night.
+###
+###  HOW TO RUN
+###  Rebuild the database:
+###      docker compose down -v
+###      docker compose up -d      (wait for healthy)
+###      restart the app           (Flyway rebuilds the schema on startup)
+###  Send the requests one at a time, because a full run of the file
+###  ignores the waits that the STOP notes ask for.
+### ===========================================================
+
+
+### 1 Log in as manager
+# @name 1 Log in as manager
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+
+### ===========================================================
+### A — NOT ENOUGH PEOPLE
+### A week asks for 26 support agents across its shifts. Six shifts a
+### week is a hard rule, so five agents can cover it and two cannot.
+### ===========================================================
+
+### A1 Stand Omer down — expect 204
+# @name A1 Stand Omer down — expect 204
+DELETE http://localhost:8080/api/employees/4?version=0
+Cookie: access_token={{token}}
+
+### A2 Stand Shira down — expect 204
+DELETE http://localhost:8080/api/employees/5?version=0
+Cookie: access_token={{token}}
+
+### A3 Stand Noa down — expect 204
+DELETE http://localhost:8080/api/employees/7?version=0
+Cookie: access_token={{token}}
+
+### A4 Who is left — expect 200 and six active
+###    Maya and Eitan are the only support agents still working
+GET http://localhost:8080/api/employees
+Cookie: access_token={{token}}
+
+### A5 Create the week of 23 Aug — expect 201
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-08-23"}
+
+### A6 Lock it — expect 200, status DRAFT
+PUT http://localhost:8080/api/schedules/4/lock
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0}
+
+### A7 Solve — expect 200
+###    The log should end with something close to:
+###      score 0hard/-95medium/-78soft, 24 new assignments,
+###      14 slots left empty
+###    Two agents can work twelve shifts between them and the week wants
+###    twenty-six, so fourteen have nowhere to go. None of that is hard:
+###    an empty slot costs medium, and the solver never pays a hard
+###    penalty to avoid it.
+POST http://localhost:8080/api/schedules/4/solve
+Cookie: access_token={{token}}
+
+### A8 Coverage — expect 200, 24 of 38 filled
+###    The gaps sit on thirteen different shifts rather than piling onto
+###    a few, because an empty slot costs the same wherever it is
+GET http://localhost:8080/api/schedules/4/coverage
+Cookie: access_token={{token}}
+
+
+### A9 Status — expect 200. Keep sending it until solving comes back
+###    false, then carry on.
+GET http://localhost:8080/api/schedules/4/solve-status
+Cookie: access_token={{token}}
+
+
+### ===========================================================
+###  STOP. Wait 40 seconds before carrying on, because that is how long
+###  the solver is given.
+### ===========================================================
+
+### ===========================================================
+### B — A POSITION NOBODY CAN COVER
+### Everyone back at work, and every support agent says they cannot
+### work one particular night. The night asks for one agent.
+### ===========================================================
+
+### B1 Bring Omer back — expect 200
+# @name B1 Bring Omer back — expect 200
+PUT http://localhost:8080/api/employees/4/activate?version=1
+Cookie: access_token={{token}}
+
+### B2 Bring Shira back — expect 200
+PUT http://localhost:8080/api/employees/5/activate?version=1
+Cookie: access_token={{token}}
+
+### B3 Bring Noa back — expect 200
+PUT http://localhost:8080/api/employees/7/activate?version=1
+Cookie: access_token={{token}}
+
+### B4 Create the week of 30 Aug — expect 201
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-08-30"}
+
+### B5 Read the shift ids — expect 200, 85 to 105
+###    87 is the night of 30 Aug, and it asks for one support agent
+GET http://localhost:8080/api/schedules/5
+Cookie: access_token={{token}}
+
+### B6 Maya can't work it — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 87, "type": "CANNOT", "employeeId": 3}
+
+### B7 Omer can't either — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 87, "type": "CANNOT", "employeeId": 4}
+
+### B8 Shira — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 87, "type": "CANNOT", "employeeId": 5}
+
+### B9 Eitan — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 87, "type": "CANNOT", "employeeId": 6}
+
+### B10 Noa, the last of them — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 87, "type": "CANNOT", "employeeId": 7}
+
+### B11 Lock the week — expect 200
+PUT http://localhost:8080/api/schedules/5/lock
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0}
+
+### B12 Solve — expect 200
+###    The log should end with something close to:
+###      score 0hard/-10medium/-81soft, 37 new assignments,
+###      1 slots left empty
+###    Every other slot is filled. The one that is not is the night
+###    nobody is allowed to work.
+POST http://localhost:8080/api/schedules/5/solve
+Cookie: access_token={{token}}
+
+### B13 Status — expect 200. Keep sending it until solving comes back
+###     false, then read the coverage below.
+GET http://localhost:8080/api/schedules/5/solve-status
+Cookie: access_token={{token}}
+
+### ===========================================================
+###  STOP. Wait 40 seconds before reading the coverage below, because that
+###  is how long the solver is given.
+### ===========================================================
+
+### B14 Coverage — expect 200, 37 of 38 filled
+###    Shift 87 comes back asking for one support agent with nobody on
+###    it, and the position is marked essential, so the grid shows it red
+# @name B14 Coverage — expect 200, 37 of 38 filled
+GET http://localhost:8080/api/schedules/5/coverage
+Cookie: access_token={{token}}

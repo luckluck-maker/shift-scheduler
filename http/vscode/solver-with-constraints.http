@@ -1,0 +1,169 @@
+### ===========================================================
+###  Solver — leave, constraints and a pinned assignment
+###
+###  For the VS Code REST Client. It keeps the session cookie by
+###  itself, so no token is passed by hand.
+###
+###  The week of 23 Aug is built on top of the seed, so its shifts are
+###  64 to 84: 64 is the Sunday morning, 65 the evening, 66 the night,
+###  67 the Monday morning, and so on in threes.
+###
+###  HOW TO RUN
+###  Rebuild the database:
+###      docker compose down -v
+###      docker compose up -d      (wait for healthy)
+###      restart the app           (Flyway rebuilds the schema on startup)
+###  Send the requests one at a time, because a full run of the file
+###  ignores the waits that the STOP notes ask for.
+### ===========================================================
+
+
+### 1 Log in as manager
+# @name 1 Log in as manager
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+
+### 2 Who is a support agent and who is a supervisor — expect 200
+###   The rest of the run depends on this split
+GET http://localhost:8080/api/employees
+
+
+### ----- LEAVE -----
+### The seed keeps its leave in the weeks before this one, so these are the
+### only days off inside the week being solved.
+
+### 3 Omer is away Mon-Wed — expect 201
+# @name 3 Omer is away Mon-Wed — expect 201
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+
+{"employeeId": 4, "startDate": "2026-08-24", "endDate": "2026-08-26", "type": "VACATION"}
+
+### 4 Eitan is away Thu-Fri — expect 201
+POST http://localhost:8080/api/leaves
+Content-Type: application/json
+
+{"employeeId": 6, "startDate": "2026-08-27", "endDate": "2026-08-28", "type": "SICK"}
+
+
+### ----- THE WEEK -----
+
+### 5 Create the week of 23 Aug — expect 201
+###   21 shifts and 38 people asked for across them, copied from the week
+###   of 16 Aug. A morning wants a supervisor, two agents and a senior;
+###   an evening and a night want one agent each.
+# @name 5 Create the week of 23 Aug — expect 201
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+
+{"weekStart": "2026-08-23"}
+
+### 6 Read the shift ids — expect 200, 64 to 84
+GET http://localhost:8080/api/schedules/4
+
+
+### ----- EMPLOYEE CONSTRAINTS -----
+
+### 7 Maya can't work the Sunday morning — expect 201
+# @name 7 Maya can't work the Sunday morning — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 64, "type": "CANNOT", "reason": "קורס", "employeeId": 3}
+
+### 8 Maya can't work the Monday morning either — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 67, "type": "CANNOT", "reason": "קורס", "employeeId": 3}
+
+### 9 Shira would rather not work the Sunday night — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 66, "type": "PREFERS_NOT", "reason": "נסיעה ארוכה", "employeeId": 5}
+
+### 10 Tamar would rather not work the Monday night — expect 201
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+
+{"shiftId": 69, "type": "PREFERS_NOT", "employeeId": 9}
+
+
+### ----- CLOSE SUBMISSION -----
+
+### 11 Lock the week — expect 200, status DRAFT and version 1
+# @name 11 Lock the week — expect 200, status DRAFT and version 1
+PUT http://localhost:8080/api/schedules/4/lock
+Content-Type: application/json
+
+{"version": 0}
+
+
+### ----- A MANUAL ASSIGNMENT TO PIN -----
+
+### 12 Put Gilad on the Sunday night by hand — expect 201
+###    The night asks for an agent and he is a senior, so this needs
+###    override true. The lock raised the version to 1.
+# @name 12 Put Gilad on the Sunday night by hand — expect 201
+POST http://localhost:8080/api/assignments
+Content-Type: application/json
+
+{"shiftId": 66, "employeeId": 8, "override": true, "scheduleVersion": 1}
+
+### 13 Coverage before solving — expect 200, one assignment
+GET http://localhost:8080/api/schedules/4/coverage
+
+
+### ----- SOLVE -----
+
+### 14 Solve — expect 200
+###    It stops once ten seconds pass with no better answer, so about
+###    ten seconds here. The hard cap is forty.
+###
+###    The log should read:
+###      39 slots (1 already assigned), 9 employees, 5 days of leave,
+###      4 stated constraints
+###    39 and not 38: no requirement asked for a senior on a night, so
+###    Gilad's assignment carries a slot of its own.
+# @name 14 Solve — expect 200
+POST http://localhost:8080/api/schedules/4/solve
+
+
+### ----- WHILE THE SOLVER IS RUNNING -----
+### Send these straight after 14, inside its ten seconds. The solver works
+### from the copy it read when it started, so nothing it depends on may change.
+
+### 15 Delete a shift type — expect 409 with code WRONG_STATUS
+# @name 15 Delete a shift type — expect 409 with code WRONG_STATUS
+DELETE http://localhost:8080/api/shift-types/1
+
+### 16 Delete a job position — expect 409, the same reason
+DELETE http://localhost:8080/api/job-positions/1
+
+### 17 Stand an employee down — expect 409, the same reason
+DELETE http://localhost:8080/api/employees/5?version=0
+
+### 18 Status — expect 200 with solving true until it finishes
+GET http://localhost:8080/api/schedules/4/solve-status
+
+
+### ===========================================================
+###  STOP. Wait 40 seconds before carrying on, because that is how long
+###  the solver is given.
+### ===========================================================
+
+### ----- AFTER IT FINISHES -----
+
+### 19 Coverage after solving — expect 200
+###    Gilad is still on the Sunday night: a pinned assignment is left
+###    alone. Maya is on neither morning she ruled out, and the two
+###    prefers-not nights went to somebody else if anyone was free.
+# @name 19 Coverage after solving — expect 200
+GET http://localhost:8080/api/schedules/4/coverage
+
+### 20 The same delete now works — expect 204
+DELETE http://localhost:8080/api/shift-types/1

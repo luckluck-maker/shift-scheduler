@@ -1,0 +1,97 @@
+### ===========================================================
+###  Submission deadline
+###
+###  Every request carries the token by hand.
+###  The HTTP Client reads Max-Age as milliseconds, so the cookie expires
+###  after 28 seconds instead of 8 hours.
+###  https://youtrack.jetbrains.com/issue/IJPL-208287
+###
+###  HOW TO RUN
+###  Rebuild the database:
+###      docker compose down -v
+###      docker compose up -d      (wait for healthy)
+###  Send the requests one at a time, because a full run of the file
+###  ignores the waits that the STOP notes ask for.
+### ===========================================================
+
+
+### 1 Log in and keep the token
+# @name 1 Log in and keep the token
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+> {%
+    const cookie = response.headers.valueOf("Set-Cookie");
+    client.global.set("token", cookie.split(";")[0].split("=")[1]);
+
+    client.test("logged in", function () {
+        client.assert(response.status === 200, "expected 200");
+    });
+%}
+
+
+### 2 Check the token works — expect 200, not 401
+###   If this passes, the workaround is doing its job
+GET http://localhost:8080/api/auth/me
+Cookie: access_token={{token}}
+
+
+### 3 Read the schedule — note its version and status
+GET http://localhost:8080/api/schedules/3
+Cookie: access_token={{token}}
+
+
+### 4 Set the deadline two minutes from now — expect 200
+###   The handler works the time out, so there is nothing to edit here
+< {%
+    request.variables.set("deadline", new Date(Date.now() + 120000).toISOString());
+%}
+PUT http://localhost:8080/api/schedules/3/submission-deadline
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "submissionClosesAt": "{{deadline}}"}
+
+
+### 5 Straight away — expect COLLECTING still, with the
+###   deadline showing in submissionClosesAt
+GET http://localhost:8080/api/schedules/3
+Cookie: access_token={{token}}
+
+
+### ===========================================================
+###  STOP. Wait three minutes before request 6, because the window closes
+###  two minutes from now and the job looks for expired ones once a minute.
+### ===========================================================
+
+### 6 After the two minutes, plus up to one more — expect DRAFT
+###   The job looks for expired windows once a minute
+###
+###   The log should show:
+###     Submission closed automatically for the week of 2026-08-16
+# @name 6 After the two minutes, plus up to one more — expect DRAFT
+GET http://localhost:8080/api/schedules/3
+Cookie: access_token={{token}}
+
+
+### 7 Log in as Maya — expect 200
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "maya@shiftscheduler.local", "password": "password123"}
+
+> {%
+    const cookie = response.headers.valueOf("Set-Cookie");
+    client.global.set("token", cookie.split(";")[0].split("=")[1]);
+%}
+
+### 8 Try to submit a constraint — expect 409
+###   Shift 43 is the Sunday morning of that week. The window shut on its
+###   own, so an employee cannot get in.
+POST http://localhost:8080/api/shift-preferences
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"shiftId": 43, "type": "CANNOT"}

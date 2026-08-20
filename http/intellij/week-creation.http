@@ -1,0 +1,206 @@
+### ===========================================================
+###  Creating a week
+###
+###  Every request carries the token by hand.
+###  The HTTP Client reads Max-Age as milliseconds, so the cookie expires
+###  after 28 seconds instead of 8 hours.
+###  https://youtrack.jetbrains.com/issue/IJPL-208287
+###
+###  A week gets every shift type there is, with no requirements on
+###  any of them. The numbers come from the previous week where there
+###  is one.
+###
+###  HOW TO RUN
+###  Rebuild the database:
+###      docker compose down -v
+###      docker compose up -d      (wait for healthy)
+###      restart the app           (Flyway rebuilds the schema on startup)
+###  Run the whole file at once, because nothing in it waits for a job or
+###  a solver to finish.
+### ===========================================================
+
+
+### 1 Log in
+# @name 1 Log in
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{"username": "dana@shiftscheduler.local", "password": "password123"}
+
+> {%
+    if (response.status === 200) {
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.global.set("token", cookie.split(";")[0].split("=")[1]);
+    }
+%}
+
+### 2 What shift types exist — expect 200, three from the seed
+GET http://localhost:8080/api/shift-types
+Cookie: access_token={{token}}
+
+
+### ----- A WEEK WITH NOTHING BEFORE IT -----
+### The seed starts at 2 Aug, so a week before that has nothing to copy.
+
+### 3 Create the week of 26 Jul — expect 201
+###   21 shifts (3 types x 7 days), every requirements list empty.
+###   submissionClosesAt comes back null. The week is already past, and a
+###   deadline behind us would close it the moment the job runs.
+# @name 3 Create the week of 26 Jul — expect 201
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-07-26"}
+
+
+### ----- SHIFTS IN THE BODY ARE IGNORED -----
+
+### 4 Create the week of 23 Aug, asking for 9 agents — expect 201
+# @name 4 Create the week of 23 Aug, asking for 9 agents — expect 201
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{
+  "weekStart": "2026-08-23",
+  "shifts": [
+    { "shiftTypeId": 1, "requirements": [{"jobPositionId": 2, "requiredCount": 9}] }
+  ]
+}
+
+### 5 Read it — expect 200, 21 shifts, and no requiredCount of 9
+###   The numbers came from the week of 16 Aug, not from the body
+GET http://localhost:8080/api/schedules/5
+Cookie: access_token={{token}}
+
+
+### ----- A SHIFT TYPE ADDED PART WAY THROUGH -----
+
+### 6 Add a midday shift — expect 201
+# @name 6 Add a midday shift — expect 201
+POST http://localhost:8080/api/shift-types
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"name": "ביניים", "startTime": "12:00", "endTime": "20:00"}
+
+### 7 Create the week of 30 Aug — expect 201 and 28 shifts
+###   Four types now, so seven more shifts than the weeks above.
+###   This week is ahead of us, so submissionClosesAt is set: four days
+###   before it starts, at 23:59.
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-08-30"}
+
+
+### ----- REQUIREMENTS CARRY OVER, STRUCTURE DOESN'T -----
+
+### 8 Ask the Sunday morning of 30 Aug for one supervisor, two agents and
+###   one senior — expect 200. Shift 106 is that morning on a clean run.
+# @name 8 Ask the Sunday morning of 30 Aug for one supervisor, two agents and
+PUT http://localhost:8080/api/schedules/6/shifts/106/requirements
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "requirements": [
+  {"jobPositionId": 1, "requiredCount": 1},
+  {"jobPositionId": 2, "requiredCount": 2},
+  {"jobPositionId": 3, "requiredCount": 1}
+]}
+
+### 9 Create the week after it — expect 201
+###   Its Sunday morning should come back asking for the same three
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-09-06"}
+
+### 10 Read it again — expect 200
+###    The copy took the numbers as they are now, not as the week of
+###    16 Aug had them
+GET http://localhost:8080/api/schedules/7
+Cookie: access_token={{token}}
+
+
+### ----- THE ERROR CASES -----
+
+### 11 A Monday — expect 400
+# @name 11 A Monday — expect 400
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-09-14"}
+
+### 12 A week that already exists — expect 409
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-08-09"}
+
+
+### 13 A deadline given in the request wins — expect 201
+###    Compare submissionClosesAt with the one request 3 worked out
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-09-13", "submissionClosesAt": "2026-09-09T12:00:00Z"}
+
+
+### ----- A SHIFT TYPE THAT IS NO LONGER IN USE -----
+
+### 14 Remove the midday shift — expect 204
+###    The week of 30 Aug loses its midday shifts too. Removing a type
+###    reaches into every week that has not been published.
+# @name 14 Remove the midday shift — expect 204
+DELETE http://localhost:8080/api/shift-types/4
+Cookie: access_token={{token}}
+
+### 15 Create the week of 20 Sep — expect 201 and 21 shifts again
+###    A week is built from the types that are live when it is created
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-09-20"}
+
+
+### ----- A POSITION THAT IS NO LONGER IN USE -----
+
+### 16 Move Gilad to support — expect 200
+# @name 16 Move Gilad to support — expect 200
+PUT http://localhost:8080/api/employees/8
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "fullName": "גלעד רוט", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 2}
+
+### 17 Move Tamar to support — expect 200
+PUT http://localhost:8080/api/employees/9
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"version": 0, "fullName": "תמר ורדי", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 2}
+
+### 18 Remove the senior position — expect 204
+###    Nobody active holds it now, so it is allowed. The requirement put
+###    on 30 Aug in request 8 goes with it, the same way.
+DELETE http://localhost:8080/api/job-positions/3
+Cookie: access_token={{token}}
+
+### 19 Create the week of 27 Sep — expect 201
+###    The Sunday morning of the week before asks for a senior agent, and
+###    the copy leaves it out now that the position is gone
+POST http://localhost:8080/api/schedules
+Content-Type: application/json
+Cookie: access_token={{token}}
+
+{"weekStart": "2026-09-27"}
