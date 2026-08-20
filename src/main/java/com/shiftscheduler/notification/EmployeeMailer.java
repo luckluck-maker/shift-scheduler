@@ -21,18 +21,21 @@ public class EmployeeMailer {
 
     private static final Logger log = LoggerFactory.getLogger(EmployeeMailer.class);
 
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM yyyy");
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d/M/yyyy");
 
     private final JavaMailSender mailSender;
     private final EmployeeRepository employeeRepository;
     private final String from;
+    private final String appUrl;
 
     public EmployeeMailer(JavaMailSender mailSender,
                           EmployeeRepository employeeRepository,
-                          @Value("${app.mail.from}") String from) {
+                          @Value("${app.mail.from}") String from,
+                          @Value("${app.url}") String appUrl) {
         this.mailSender = mailSender;
         this.employeeRepository = employeeRepository;
         this.from = from;
+        this.appUrl = appUrl;
     }
 
     // Goes to everyone active, on a shift that week or not.
@@ -53,7 +56,7 @@ public class EmployeeMailer {
     }
 
     // Only to the people whose shifts changed after the week went out.
-    // The mail doesn't list the changes, it says to sign in and look.
+    // The mail doesn't list the changes, it links to the week instead.
     public void sendRosterChanged(Schedule schedule, List<Employee> employees) {
         String weekStart = schedule.getWeekStart().format(DATE);
         // Only the start is stored. A week is always seven days.
@@ -76,16 +79,16 @@ public class EmployeeMailer {
 
         message.setFrom(from);
         message.setTo(employee.getUsername());
-        message.setSubject("Your shifts for " + weekStart + " have changed");
+        message.setSubject("המשמרות שלך לשבוע " + weekStart + " השתנו");
         message.setText("""
-                Hi %s,
+                שלום %s,
 
-                The schedule for %s to %s was updated after it was published,
-                and one of the changes affects you.
-                Sign in to see your shifts.
+                הסידור לשבוע %s עד %s עודכן אחרי הפרסום,
+                ואחד השינויים נוגע אליך.
+                המשמרות שלך מופיעות במערכת: %s
 
-                Shift Scheduler
-                """.formatted(employee.getFullName(), weekStart, weekEnd));
+                מסדרים ת'סידור
+                """.formatted(employee.getFullName(), weekStart, weekEnd, appUrl));
 
         return send(message, employee);
     }
@@ -96,15 +99,15 @@ public class EmployeeMailer {
 
         message.setFrom(from);
         message.setTo(employee.getUsername());
-        message.setSubject("Your shifts for " + weekStart + " are ready");
+        message.setSubject("הסידור לשבוע " + weekStart + " פורסם");
         message.setText("""
-                Hi %s,
+                שלום %s,
 
-                The schedule for %s to %s has been published.
-                Sign in to see which shifts you're on.
+                הסידור לשבוע %s עד %s פורסם.
+                המשמרות שלך מופיעות במערכת: %s
 
-                Shift Scheduler
-                """.formatted(employee.getFullName(), weekStart, weekEnd));
+                מסדרים ת'סידור
+                """.formatted(employee.getFullName(), weekStart, weekEnd, appUrl));
 
         return send(message, employee);
     }
