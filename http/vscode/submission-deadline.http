@@ -65,9 +65,9 @@ Content-Type: application/json
 
 
 ### 8 Try to submit a constraint — expect 409
-###   Shift 43 is the Sunday morning of that week. The window shut on its
+###   Shift 9 is the Sunday morning of that week. The window shut on its
 ###   own, so an employee cannot get in.
 POST http://localhost:8080/api/shift-preferences
 Content-Type: application/json
 
-{"shiftId": 43, "type": "CANNOT"}
+{"shiftId": 9, "type": "CANNOT"}

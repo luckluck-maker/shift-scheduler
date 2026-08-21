@@ -371,7 +371,7 @@ GET http://localhost:8080/api/leaves
 ### 2.7.8 Remove that one day by id — expect 204
 ###       A range is stored a row per day, so the other one stays
 ###       Replace the id with the one 2.7.7 returned
-DELETE http://localhost:8080/api/leaves/11
+DELETE http://localhost:8080/api/leaves/8
 
 ### 2.7.9 Remove what is left of the range — expect 204
 ###       This one takes dates rather than an id, the way the screen does it
@@ -636,13 +636,13 @@ Content-Type: application/json
 {"shiftId": 72, "type": "CANNOT"}
 
 ### 6.3 Change an existing one — expect 409
-PUT http://localhost:8080/api/shift-preferences/17
+PUT http://localhost:8080/api/shift-preferences/15
 Content-Type: application/json
 
 {"type": "CANNOT", "reason": "שיניתי את דעתי"}
 
 ### 6.4 Delete one — expect 409
-DELETE http://localhost:8080/api/shift-preferences/17
+DELETE http://localhost:8080/api/shift-preferences/15
 
 ### 6.5 Roster while DRAFT — expect 200, published false, shifts empty
 GET http://localhost:8080/api/schedules/4/roster
@@ -903,7 +903,7 @@ Content-Type: application/json
 
 ### 8.9 Take Eitan off the Sunday evening — expect 204
 ###     Replace the id with the one 7.11.7 returned
-DELETE http://localhost:8080/api/assignments/76?version=20
+DELETE http://localhost:8080/api/assignments/75?version=20
 
 ### 8.10 Read the version, and note pendingChanges is above zero
 ###      8.8 put Omer on one shift and 8.9 took Eitan off another, so two
