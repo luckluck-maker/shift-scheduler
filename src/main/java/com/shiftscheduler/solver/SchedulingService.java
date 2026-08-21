@@ -41,32 +41,39 @@ public class SchedulingService {
 
         phase.begin(scheduleId);
 
-        EmployeeSchedule problem = loader.load(scheduleId);
+        try {
+            EmployeeSchedule problem = loader.load(scheduleId);
 
-        long pinned = problem.getSlots().stream().filter(ShiftSlot::isPinned).count();
+            long pinned = problem.getSlots().stream().filter(ShiftSlot::isPinned).count();
 
-        log.info("Solving schedule {}: {} slots ({} already assigned), {} employees, "
-                        + "{} days of leave, {} stated constraints",
-                scheduleId, problem.getSlots().size(), pinned,
-                problem.getEmployees().size(), problem.getUnavailableDays().size(),
-                problem.getDislikes().size());
+            log.info("Solving schedule {}: {} slots ({} already assigned), {} employees, "
+                            + "{} days of leave, {} stated constraints",
+                    scheduleId, problem.getSlots().size(), pinned,
+                    problem.getEmployees().size(), problem.getUnavailableDays().size(),
+                    problem.getDislikes().size());
 
-        // Hands the problem off and returns. The consumer runs on the solver's
-        // own thread once it finishes.
-        solverManager.solveBuilder()
-                .withProblemId(scheduleId)
-                .withProblem(problem)
-                .withFinalBestSolutionEventConsumer(event -> onSolved(event.solution()))
-                .withExceptionHandler((id, t) -> {
-                    log.error("Solving schedule " + id + " failed", t);
-                    phase.end(scheduleId);
-                })
-                .run();
+            // Hands the problem off and returns. The consumer runs on the solver's
+            // own thread once it finishes.
+            solverManager.solveBuilder()
+                    .withProblemId(scheduleId)
+                    .withProblem(problem)
+                    .withFinalBestSolutionEventConsumer(event -> onSolved(event.solution()))
+                    .withExceptionHandler((id, t) -> {
+                        log.error("Solving schedule " + id + " failed", t);
+                        phase.end(scheduleId);
+                    })
+                    .run();
 
-        return new SolveResponse(
-                scheduleId, "SOLVING",
-                problem.getSlots().size(), (int) pinned,
-                0, 0, List.of());
+            return new SolveResponse(
+                    scheduleId, "SOLVING",
+                    problem.getSlots().size(), (int) pinned,
+                    0, 0, List.of());
+
+        } catch (RuntimeException e) {
+            // The solver never got the job, so put the week back here.
+            phase.end(scheduleId);
+            throw e;
+        }
     }
 
     private void onSolved(EmployeeSchedule solution) {
