@@ -124,9 +124,7 @@ export default function ScheduleBuilderPage() {
             setWeeks(list)
             setWeek(list.find((candidate) => candidate.id === created.id) ?? list[0])
         } catch (err) {
-            setError(err.status === 409
-                ? 'כבר קיים סידור לשבוע הזה'
-                : 'יצירת השבוע נכשלה')
+            setError(messageForCreate(err))
         } finally {
             setBusy(false)
         }
@@ -640,6 +638,18 @@ function addDays(iso, days) {
 
     return new Date(Date.UTC(year, month - 1, day + days))
         .toISOString().slice(0, 10)
+}
+
+function messageForCreate(error) {
+    if (error.code === 'NO_SHIFT_TYPES') {
+        return 'צריך להגדיר סוגי משמרת לפני שאפשר לפתוח שבוע'
+    }
+
+    if (error.status === 409) {
+        return 'כבר קיים סידור לשבוע הזה'
+    }
+
+    return 'יצירת השבוע נכשלה'
 }
 
 function messageFor(error) {

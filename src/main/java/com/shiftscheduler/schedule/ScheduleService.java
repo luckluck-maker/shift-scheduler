@@ -18,6 +18,7 @@ import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.repository.ShiftRequirementRepository;
 import com.shiftscheduler.repository.ShiftTypeRepository;
 import com.shiftscheduler.web.ConflictException;
+import com.shiftscheduler.web.ErrorCode;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
 import org.springframework.data.domain.Sort;
@@ -461,7 +462,8 @@ public class ScheduleService {
         List<ShiftType> types = shiftTypeRepository.findByActiveTrueOrderByStartTimeAsc();
 
         if (types.isEmpty()) {
-            throw new ValidationException("No shift types are defined yet");
+            throw new ValidationException("No shift types are defined yet",
+                    ErrorCode.NO_SHIFT_TYPES);
         }
 
         List<Shift> shifts = new ArrayList<>();
