@@ -153,12 +153,13 @@ function LeaveForm({ employees, onClose, onSaved }) {
     }
 
     // Picking a start date fills in the end date too, since most leave is a
-    // single day.
+    // single day. An end date behind the new start moves with it.
+    // The dates are yyyy-mm-dd, so they compare as text.
     function setStart(value) {
         setForm((current) => ({
             ...current,
             startDate: value,
-            endDate: current.endDate || value,
+            endDate: current.endDate >= value ? current.endDate : value,
         }))
     }
 
