@@ -26,8 +26,8 @@ public class SubmissionDeadlineJob {
         this.scheduleRepository = scheduleRepository;
     }
 
-    // Runs every minute (not critical if close happens after minute)
-    @Scheduled(fixedRate = 60_000)
+    // Closing an hour late changes nothing, so the rate is a setting.
+    @Scheduled(fixedRateString = "${app.submission.check-rate-ms}")
     @Transactional
     public void closeExpired() {
 

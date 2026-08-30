@@ -64,10 +64,12 @@ Cookie: access_token={{token}}
 ### ===========================================================
 ###  STOP. Wait three minutes before request 6, because the window closes
 ###  two minutes from now and the job looks for expired ones once a minute.
+###  Start the app with -Dapp.submission.check-rate-ms=60000 for that, since
+###  the setting is an hour by default.
 ### ===========================================================
 
 ### 6 After the two minutes, plus up to one more — expect DRAFT
-###   The job looks for expired windows once a minute
+###   The job looks for expired windows once a minute at this rate
 ###
 ###   The log should show:
 ###     Submission closed automatically for the week of 2026-08-16
