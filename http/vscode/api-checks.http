@@ -257,6 +257,9 @@ Content-Type: application/json
 ### Dana is the only manager. Standing her down and demoting her are both
 ### refused, and the count is read under a write lock so two demotions
 ### arriving together cannot both pass.
+###
+### A demotion takes effect at once, so whoever demotes themselves has to
+### hand over to the other manager before carrying on.
 
 ### 2.6.1 Stand her down — expect 400
 # @name 2.6.1 Stand her down — expect 400
@@ -286,19 +289,18 @@ Content-Type: application/json
 {"version": 0, "fullName": "דנה לוי", "role": "EMPLOYEE",
   "maxWeeklyHours": 40, "jobPositionId": 1}
 
-### 2.6.6 And Yoni, now the only one, cannot — expect 400
-PUT http://localhost:8080/api/employees/2
-Content-Type: application/json
-
-{"version": 1, "fullName": "יוני ברק", "role": "EMPLOYEE",
-  "maxWeeklyHours": 40, "jobPositionId": 1}
-
-### 2.6.7 Dana is an employee now, so restoring her needs Yoni's session
+### 2.6.6 Dana is an employee from here on, so the rest needs Yoni's session
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "yoni@shiftscheduler.local", "password": "password123"}
 
+### 2.6.7 And Yoni, now the only one, cannot — expect 400
+PUT http://localhost:8080/api/employees/2
+Content-Type: application/json
+
+{"version": 1, "fullName": "יוני ברק", "role": "EMPLOYEE",
+  "maxWeeklyHours": 40, "jobPositionId": 1}
 
 ### 2.6.8 Restore Dana as manager — expect 200
 PUT http://localhost:8080/api/employees/1
@@ -314,18 +316,17 @@ Content-Type: application/json
 {"version": 1, "fullName": "יוני ברק", "role": "EMPLOYEE",
   "maxWeeklyHours": 40, "jobPositionId": 1}
 
-### 2.6.10 Stand the new employee down — expect 204
-DELETE http://localhost:8080/api/employees/11?version=1
-
-### 2.6.11 And bring them back — expect 200, active true again
-PUT http://localhost:8080/api/employees/11/activate?version=2
-
-### 2.6.12 Back to Dana's session
+### 2.6.10 And Yoni is an employee now, so back to Dana
 POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {"username": "dana@shiftscheduler.local", "password": "password123"}
 
+### 2.6.11 Stand the new employee down — expect 204
+DELETE http://localhost:8080/api/employees/11?version=1
+
+### 2.6.12 And bring them back — expect 200, active true again
+PUT http://localhost:8080/api/employees/11/activate?version=2
 
 ### ----- 2.7 LEAVES -----
 
