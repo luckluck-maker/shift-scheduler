@@ -3,6 +3,8 @@ package com.shiftscheduler.auth;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
+import com.shiftscheduler.domain.Employee;
+import com.shiftscheduler.repository.EmployeeRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -20,10 +22,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthCookieFactory cookieFactory;
+    private final EmployeeRepository employees;
 
-    public AuthController(AuthService authService, AuthCookieFactory cookieFactory) {
+    public AuthController(AuthService authService, AuthCookieFactory cookieFactory,
+                          EmployeeRepository employees) {
         this.authService = authService;
         this.cookieFactory = cookieFactory;
+        this.employees = employees;
     }
 
     // The token goes back as a cookie, not in the body, so the browser sends
@@ -44,15 +49,22 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, cookieFactory.expire().toString());
     }
 
-    // Read straight off the token. The screen calls it once to know the name
-    // and the role.
+    // Reads the employee rather than the token, so a role that changed reaches
+    // the screen and the menu matches what the checks allow.
     @GetMapping("/me")
     public CurrentUser me(@AuthenticationPrincipal Jwt jwt) {
+        Number id = jwt.getClaim("employeeId");
+
+        Employee employee = employees.findByIdAndActiveTrue(id.longValue())
+                // The filter chain already refused a disabled or missing employee.
+                .orElseThrow(() -> new IllegalStateException(
+                        "Authenticated employee " + id + " is gone"));
+
         return new CurrentUser(
-                jwt.getClaim("employeeId"),
-                jwt.getSubject(),
-                jwt.getClaim("fullName"),
-                jwt.getClaim("role")
+                employee.getId(),
+                employee.getUsername(),
+                employee.getFullName(),
+                employee.getRole().name()
         );
     }
 }

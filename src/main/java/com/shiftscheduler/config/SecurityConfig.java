@@ -7,9 +7,17 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import com.shiftscheduler.domain.Employee;
+import com.shiftscheduler.repository.EmployeeRepository;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.SecurityFilterChain;
+
+import java.util.List;
 
 
 // Everything about who can reach what. Runs before any controller does.
@@ -21,7 +29,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                            JwtAuthenticationConverter jwtAuthenticationConverter)
+                                            Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter)
             throws Exception {
         http
                 // The token lives in a SameSite=Strict cookie, so the browser
@@ -69,16 +77,22 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // The token says "role": "MANAGER" and Spring wants ROLE_MANAGER, so this
-    // bridges the two for every hasRole check.
+    // Reads the employee on every request, because the token keeps the role from
+    // login and would still work after the role changed or the account was
+    // disabled. Spring wants ROLE_MANAGER, the row says MANAGER.
     @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
-        authorities.setAuthoritiesClaimName("role");
-        authorities.setAuthorityPrefix("ROLE_");
+    Converter<Jwt, AbstractAuthenticationToken> jwtAuthenticationConverter(
+            EmployeeRepository employees) {
 
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(authorities);
-        return converter;
+        return jwt -> {
+            Number id = jwt.getClaim("employeeId");
+
+            Employee employee = employees.findByIdAndActiveTrue(id.longValue())
+                    .orElseThrow(() -> new InvalidBearerTokenException(
+                            "The account is disabled or no longer exists"));
+
+            return new JwtAuthenticationToken(jwt,
+                    List.of(new SimpleGrantedAuthority("ROLE_" + employee.getRole().name())));
+        };
     }
 }
