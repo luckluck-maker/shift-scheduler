@@ -141,7 +141,8 @@ export default function ConstraintsPage() {
                 }
 
                 if (type === null) {
-                    await api.delete(`/api/shift-preferences/${shift.preferenceId}`)
+                    await api.delete(
+                        `/api/shift-preferences/${shift.preferenceId}?version=${shift.preferenceVersion}`)
                 } else if (current === null) {
                     await api.post('/api/shift-preferences', {
                         shiftId: shift.shiftId,
@@ -154,6 +155,7 @@ export default function ConstraintsPage() {
                     await api.put(`/api/shift-preferences/${shift.preferenceId}`, {
                         type,
                         reason: shift.preferenceReason,
+                        version: shift.preferenceVersion,
                     })
                 }
             }
@@ -193,6 +195,7 @@ export default function ConstraintsPage() {
                 await api.put(`/api/shift-preferences/${shift.preferenceId}`, {
                     type: shift.preferenceType,
                     reason: reason || null,
+                    version: shift.preferenceVersion,
                 })
             }
 

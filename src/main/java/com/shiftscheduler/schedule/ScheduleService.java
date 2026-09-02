@@ -430,7 +430,8 @@ public class ScheduleService {
                 type.isCrossesMidnight(),
                 preference == null ? null : preference.getId(),
                 preference == null ? null : preference.getType().name(),
-                preference == null ? null : preference.getReason());
+                preference == null ? null : preference.getReason(),
+                preference == null ? null : preference.getVersion());
     }
 
     private ShiftResponse toShiftResponse(Shift shift, List<ShiftRequirement> requirements) {

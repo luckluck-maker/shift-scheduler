@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 
 // An employee's constraint on a single shift.
 @Entity
@@ -39,6 +40,12 @@ public class ShiftPreference {
 
     @Column(length = 255)
     private String reason;
+
+    // A manager may edit a constraint an employee submitted, so two people can
+    // write the same row and the second one has to be told.
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     public Long getId() {
         return id;
@@ -78,5 +85,9 @@ public class ShiftPreference {
 
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    public long getVersion() {
+        return version;
     }
 }

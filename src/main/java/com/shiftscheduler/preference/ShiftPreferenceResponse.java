@@ -11,6 +11,7 @@ public record ShiftPreferenceResponse(
         Long employeeId,
         String employeeName,
         String type,
-        String reason
+        String reason,
+        long version
 ) {
 }

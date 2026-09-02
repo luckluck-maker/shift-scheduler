@@ -119,6 +119,7 @@ CREATE TABLE shift_preference
     shift_id    BIGINT      NOT NULL,
     type        VARCHAR(20) NOT NULL,
     reason      VARCHAR(255) NULL,
+    version     BIGINT      NOT NULL DEFAULT 0,
     CONSTRAINT uk_preference_employee_shift UNIQUE (employee_id, shift_id),
     CONSTRAINT fk_preference_employee
         FOREIGN KEY (employee_id) REFERENCES employee (id),

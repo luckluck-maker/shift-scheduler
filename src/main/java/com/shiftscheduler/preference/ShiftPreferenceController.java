@@ -47,7 +47,7 @@ public class ShiftPreferenceController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        preferenceService.delete(id);
+    public void delete(@PathVariable Long id, @RequestParam Long version) {
+        preferenceService.delete(id, version);
     }
 }

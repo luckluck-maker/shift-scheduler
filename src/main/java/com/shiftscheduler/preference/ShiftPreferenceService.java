@@ -11,6 +11,7 @@ import com.shiftscheduler.repository.ShiftPreferenceRepository;
 import com.shiftscheduler.repository.ShiftRepository;
 import com.shiftscheduler.schedule.ScheduleGuard;
 import com.shiftscheduler.web.ConflictException;
+import com.shiftscheduler.web.ErrorCode;
 import com.shiftscheduler.web.ResourceNotFoundException;
 import com.shiftscheduler.web.ValidationException;
 import org.springframework.security.access.AccessDeniedException;
@@ -87,6 +88,7 @@ public class ShiftPreferenceService {
     public ShiftPreferenceResponse update(Long id, ShiftPreferenceUpdateRequest request) {
         ShiftPreference preference = requireOwned(id);
         requireSubmissionAllowed(preference.getShift().getSchedule());
+        requireCurrentVersion(preference, request.version());
 
         preference.setType(request.type());
         preference.setReason(trimmed(request.reason()));
@@ -96,11 +98,22 @@ public class ShiftPreferenceService {
 
     // Removes the constraint.
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long id, Long version) {
         ShiftPreference preference = requireOwned(id);
         requireSubmissionAllowed(preference.getShift().getSchedule());
+        requireCurrentVersion(preference, version);
 
         preferenceRepository.delete(preference);
+    }
+
+    // The caller sends back the version it was showing, so an edit made from a
+    // second screen or by the manager is not overwritten without anyone knowing.
+    private void requireCurrentVersion(ShiftPreference preference, Long expected) {
+        if (expected == null || expected != preference.getVersion()) {
+            throw new ConflictException(
+                    "This constraint was changed by someone else. Reload and try again.",
+                    ErrorCode.STALE_VERSION);
+        }
     }
 
     // Employees submit only while the schedule is collecting.
@@ -162,6 +175,7 @@ public class ShiftPreferenceService {
                 employee.getId(),
                 employee.getFullName(),
                 preference.getType().name(),
-                preference.getReason());
+                preference.getReason(),
+                preference.getVersion());
     }
 }

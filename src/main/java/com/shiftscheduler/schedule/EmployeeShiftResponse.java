@@ -21,6 +21,9 @@ public record EmployeeShiftResponse(
         boolean crossesMidnight,
         Long preferenceId,
         String preferenceType,
-        String preferenceReason
+        String preferenceReason,
+
+        // Sent back when the constraint is changed, so a stale screen is refused.
+        Long preferenceVersion
 ) {
 }
