@@ -11,7 +11,7 @@ import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
 // https://docs.timefold.ai/timefold-solver/latest/running-timefold-solver/library/jpa-jaxb-json-integration
 // That route needs a score converter, deep-clone annotations, and every lazy
 // relation initialized before solving starts.
-// I mapped to plain classes instead so nothing Hibernate manages is touched during the 30 seconds
+// I mapped to plain classes instead so nothing Hibernate manages is touched during the 40 seconds
 // search, which runs outside a transaction.
 
 
