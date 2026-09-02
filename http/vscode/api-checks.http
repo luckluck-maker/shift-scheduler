@@ -640,10 +640,10 @@ Content-Type: application/json
 PUT http://localhost:8080/api/shift-preferences/15
 Content-Type: application/json
 
-{"type": "CANNOT", "reason": "שיניתי את דעתי"}
+{"type": "CANNOT", "reason": "שיניתי את דעתי", "version": 0}
 
 ### 6.4 Delete one — expect 409
-DELETE http://localhost:8080/api/shift-preferences/15
+DELETE http://localhost:8080/api/shift-preferences/15?version=0
 
 ### 6.5 Roster while DRAFT — expect 200, published false, shifts empty
 GET http://localhost:8080/api/schedules/4/roster
