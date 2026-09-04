@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.shiftscheduler.domain.Assignment;
+import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
 import com.shiftscheduler.repository.AssignmentRepository;
 import com.shiftscheduler.repository.RosterChangeRepository;
@@ -24,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 // Staff: adding people, editing them, and activating or deactivating them.
 @Service
@@ -117,6 +120,9 @@ public class EmployeeService {
         employee.setMaxWeeklyHours(request.maxWeeklyHours());
         employee.setJobPosition(requirePosition(request.jobPositionId()));
 
+        // Writes the row now, so the response carries the version the database holds.
+        employeeRepository.flush();
+
         return toResponse(employee);
     }
 
@@ -145,6 +151,9 @@ public class EmployeeService {
         }
 
         employee.setActive(true);
+
+        // Writes the row now, so the response carries the version the database holds.
+        employeeRepository.flush();
 
         return toResponse(employee);
     }
@@ -261,9 +270,14 @@ public class EmployeeService {
             return;
         }
 
-        for (Assignment assignment : assignments) {
-            guard.markChanged(assignment.getShift().getSchedule());
-        }
+        // Touches each week once and not once per assignment, so the version goes up by one.
+        // Ordered by id, so two requests that touch the same weeks lock them in the same order.
+        assignments.stream()
+                .map(assignment -> assignment.getShift().getSchedule())
+                .collect(Collectors.toMap(Schedule::getId, schedule -> schedule, (a, b) -> a,
+                        TreeMap::new))
+                .values()
+                .forEach(guard::markChanged);
 
         assignmentRepository.deleteAll(assignments);
 

@@ -93,6 +93,9 @@ public class ShiftPreferenceService {
         preference.setType(request.type());
         preference.setReason(trimmed(request.reason()));
 
+        // Writes the row now, so the response carries the version the database holds.
+        preferenceRepository.flush();
+
         return toResponse(preference);
     }
 

@@ -81,7 +81,10 @@ public class ScheduleGuard {
     // Raises the version of the whole week.
     // Assignments and requirements sit in other tables, so Hibernate won't
     // see a change here unless a field on the week itself is touched.
+    // Writes the row straight away, so the caller gets back the version the
+    // database holds and a second change with the same version fails here.
     public void markChanged(Schedule schedule) {
         schedule.touch();
+        scheduleRepository.flush();
     }
 }
