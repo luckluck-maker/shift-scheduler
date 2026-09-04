@@ -1172,14 +1172,16 @@ label {
 }
 
 .panel-reason {
-  display: block;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   padding: 0.85rem 1.1rem 1.1rem;
 }
 
 .panel-reason input {
   width: 100%;
   max-width: 26rem;
-  margin-top: 0.35rem;
   border-color: oklch(0.36 0.015 240);
 }
 
