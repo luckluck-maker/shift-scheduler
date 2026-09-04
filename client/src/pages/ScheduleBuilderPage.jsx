@@ -243,6 +243,12 @@ export default function ScheduleBuilderPage() {
             const status = await api.get(`/api/schedules/${week.id}/solve-status`)
 
             if (!status.solving) {
+                // The solver failed on its own thread, so the failure only
+                // shows up here and not on the solve request itself.
+                if (status.error) {
+                    throw Object.assign(new Error(status.error), { code: 'SOLVE_FAILED' })
+                }
+
                 return
             }
 
@@ -659,6 +665,10 @@ function messageFor(error) {
 
     if (error.code === 'WRONG_STATUS') {
         return 'הפעולה אינה אפשרית במצב הנוכחי של הסידור'
+    }
+
+    if (error.code === 'SOLVE_FAILED') {
+        return 'בניית הסידור נכשלה. אפשר לנסות שוב'
     }
 
     return 'הפעולה נכשלה'
