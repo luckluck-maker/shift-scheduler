@@ -146,6 +146,8 @@ Cookie: access_token={{token}}
 
 ### 13 A deadline given in the request wins — expect 201
 ###    Compare submissionClosesAt with the one request 3 worked out
+###    A deadline in the past is refused with 400, so move this date
+###    forward when running the file after 9 Sep 2026.
 POST http://localhost:8080/api/schedules
 Content-Type: application/json
 Cookie: access_token={{token}}

@@ -398,7 +398,10 @@ public class ScheduleService {
                 .map(RequirementSpec::jobPositionId)
                 .collect(Collectors.toSet());
 
+        // Drops a position that was removed, so the loop below refuses it as
+        // not found.
         Map<Long, JobPosition> found = jobPositionRepository.findAllById(ids).stream()
+                .filter(JobPosition::isActive)
                 .collect(Collectors.toMap(JobPosition::getId, Function.identity()));
 
         for (Long id : ids) {

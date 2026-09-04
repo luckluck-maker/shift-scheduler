@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 // Reads only — nothing here decides anything or writes anything back.
 //
 // Everything runs inside one read-only transaction so the lazy relations are
-// resolved here. The solver runs for 30 seconds afterwards with no transaction
+// resolved here. The solver runs for 40 seconds afterwards with no transaction
 // open, and by then it only ever sees plain values.
 @Service
 public class ScheduleLoader {
@@ -105,13 +105,16 @@ public class ScheduleLoader {
                 .map(employee -> {
                     int contracted = employee.getMaxWeeklyHours() * 60 / shiftMinutes;
                     int away = leaveDays.getOrDefault(employee.getId(), 0L).intValue();
+                    int available = Math.max(0, contracted - away);
 
+                    // Caps the minimum at what the contract allows, so a small
+                    // contract isn't pushed into overtime by the minimum rule.
                     return new PlanningEmployee(
                             employee.getId(),
                             employee.getFullName(),
                             employee.getJobPosition().getId(),
-                            Math.max(0, contracted - away),
-                            RuleConstants.minimumShiftsWith(away));
+                            available,
+                            Math.min(available, RuleConstants.minimumShiftsWith(away)));
                 })
                 .collect(Collectors.toMap(PlanningEmployee::getId, Function.identity()));
     }

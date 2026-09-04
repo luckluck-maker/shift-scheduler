@@ -32,8 +32,8 @@
 ###  Every change to a schedule raises its version, so a request that locks,
 ###  publishes, assigns or edits requirements has to send the current one.
 ###  The numbers here are what a clean run produces. If one comes back "The
-###  schedule was changed by someone else", read the version from the
-###  response before it and send that.
+###  schedule was changed by someone else", run GET /api/schedules/{id}
+###  and send the version from that.
 ###
 ###  [MAILHOG] marks a step to check in the mailbox at
 ###  http://localhost:8025.

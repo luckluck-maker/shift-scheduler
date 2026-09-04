@@ -1,5 +1,6 @@
 package com.shiftscheduler.schedule;
 
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
@@ -13,6 +14,8 @@ public record ScheduleCreateRequest(
         LocalDate weekStart,
 
         // Optional, and the manager closes submissions by hand when it is left out.
+        // A date in the past is refused, same as when the deadline is changed later.
+        @Future
         Instant submissionClosesAt
 
 ) {

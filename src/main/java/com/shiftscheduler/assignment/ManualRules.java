@@ -144,6 +144,13 @@ public class ManualRules {
                 continue;
             }
             Shift other = prior.getShift();
+
+            // Skips this week's shifts since the loop above already checked
+            // them, so a published week doesn't report the same gap twice.
+            if (!other.getShiftDate().isBefore(shift.getSchedule().getWeekStart())) {
+                continue;
+            }
+
             long gap = RuleConstants.restHoursBetween(start, end, startsAt(other), endsAt(other));
             if (gap < RuleConstants.MIN_REST_HOURS) {
                 violations.add(RuleViolation.blocking(RULE_REST, "Only " + gap + "h rest after last week's shift on " + other.getShiftDate()));
