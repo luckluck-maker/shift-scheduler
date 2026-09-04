@@ -3,8 +3,12 @@ package com.shiftscheduler.web;
 import com.shiftscheduler.assignment.AssignmentRejectedException;
 import com.shiftscheduler.assignment.AssignmentRejection;
 import com.shiftscheduler.auth.InvalidCredentialsException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -20,6 +24,8 @@ import java.util.stream.Collectors;
 // Turns the exceptions the services throw into one shape of error response.
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     // A wrong username or password. 401.
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -102,10 +108,32 @@ public class ApiExceptionHandler {
     // requireVersion, and @Version failed the second one at commit.
     // Answered as STALE_VERSION, the same code requireVersion returns, because
     // either way the manager has to reload and try again.
+    // Says "record" and not "schedule", since employees and constraints have a
+    // version too.
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<ApiError> handleLostRace(ObjectOptimisticLockingFailureException ex) {
         return build(HttpStatus.CONFLICT,
-                "The schedule was changed by someone else. Reload and try again.",
+                "This record was changed by someone else. Reload and try again.",
                 ErrorCode.STALE_VERSION);
+    }
+
+    // The role isn't allowed to do this. 403.
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleDenied(AccessDeniedException ex) {
+        return build(HttpStatus.FORBIDDEN, "You are not allowed to do that", null);
+    }
+
+    // Anything that wasn't handled above.
+    // Spring's own exceptions (404 for an unknown path, 405) keep their status.
+    // The rest is a 500 and goes to the log with the full stack trace.
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        if (ex instanceof ErrorResponse response) {
+            HttpStatus status = HttpStatus.valueOf(response.getStatusCode().value());
+            return build(status, status.getReasonPhrase(), null);
+        }
+
+        log.error("Unhandled exception", ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong on the server", null);
     }
 }
