@@ -121,6 +121,7 @@ docker compose up -d     # the context test starts the app, so it needs the data
 | `SolverRulesTest` | The fourteen solver constraints, 36 cases. Timefold's constraint verifier runs one constraint at a time and asserts the penalty it produces, so a rule is checked without solving a whole week. |
 | `ManualRulesTest` | The rules a manual assignment is checked against, 15 cases. |
 | `RuleConstantsTest` | The arithmetic both of them read, 11 cases — rest between two shifts in either order, and the minimum once leave is taken off. |
+| `ReturnedVersionTest` | The version a change hands back, 8 cases — it has to match the row the change wrote, so the caller can send it straight back. |
 | `EmployeeMailerTest` | Who gets a mail and what happens when one address is refused, 4 cases. |
 
 The solver and manual assignment hold the same rules separately, so the first
