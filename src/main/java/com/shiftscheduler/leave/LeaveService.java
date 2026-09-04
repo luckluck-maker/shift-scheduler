@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.shiftscheduler.domain.Assignment;
 import com.shiftscheduler.repository.AssignmentRepository;
+import com.shiftscheduler.schedule.ScheduleGuard;
 import com.shiftscheduler.web.ErrorCode;
 
 import java.time.LocalDate;
@@ -30,13 +31,16 @@ public class LeaveService {
     private final EmployeeLeaveRepository leaveRepository;
     private final EmployeeRepository employeeRepository;
     private final AssignmentRepository assignmentRepository;
+    private final ScheduleGuard guard;
 
     public LeaveService(EmployeeLeaveRepository leaveRepository,
                         EmployeeRepository employeeRepository,
-                        AssignmentRepository assignmentRepository) {
+                        AssignmentRepository assignmentRepository,
+                        ScheduleGuard guard) {
         this.leaveRepository = leaveRepository;
         this.employeeRepository = employeeRepository;
         this.assignmentRepository = assignmentRepository;
+        this.guard = guard;
     }
 
     // The days are merged back into ranges before they go out.
@@ -62,6 +66,10 @@ public class LeaveService {
         if (length > MAX_RANGE_DAYS) {
             throw new ValidationException("A leave range cannot exceed " + MAX_RANGE_DAYS + " days");
         }
+
+        // Refuses a new day off while the solver runs, since it read the leave
+        // when it started.
+        guard.requireNothingSolving();
 
         Employee employee = employeeRepository.findByIdAndActiveTrue(request.employeeId())
                 .orElseThrow(() -> new ResourceNotFoundException(

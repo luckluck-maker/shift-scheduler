@@ -2,7 +2,11 @@ package com.shiftscheduler.repository;
 
 import com.shiftscheduler.domain.Schedule;
 import com.shiftscheduler.domain.ScheduleStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -27,5 +31,9 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 
     List<Schedule> findByStatus(ScheduleStatus status);
 
-    boolean existsByStatus(ScheduleStatus status);
+    // Locks the weeks a solve can start on, so a solve that begins at the same
+    // moment waits for the check and the change that follows it.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Schedule s where s.status in (:statuses)")
+    List<Schedule> lockByStatusIn(@Param("statuses") Collection<ScheduleStatus> statuses);
 }

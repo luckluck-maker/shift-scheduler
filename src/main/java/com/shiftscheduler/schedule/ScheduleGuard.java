@@ -9,6 +9,7 @@ import com.shiftscheduler.web.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 // The checks that run before any change to a schedule.
@@ -23,11 +24,17 @@ public class ScheduleGuard {
         this.scheduleRepository = scheduleRepository;
     }
 
-    // Refuses a change while the solver is running. It works from the copy it
-    // read when it started, so anything changed underneath it comes back wrong
+    // Refuses a change while the solver is running, since it works from the copy
+    // it read when it started and anything changed underneath comes back wrong
     // in the solution it saves.
+    // Reads the weeks under a lock, so a solve cannot start between this check
+    // and the change that follows it.
     public void requireNothingSolving() {
-        if (scheduleRepository.existsByStatus(ScheduleStatus.SOLVING)) {
+        boolean solving = scheduleRepository
+                .lockByStatusIn(List.of(ScheduleStatus.DRAFT, ScheduleStatus.SOLVING)).stream()
+                .anyMatch(schedule -> schedule.getStatus() == ScheduleStatus.SOLVING);
+
+        if (solving) {
             throw new ConflictException(
                     "A schedule is being built right now. Wait for it to finish and try again.",
                     ErrorCode.WRONG_STATUS);

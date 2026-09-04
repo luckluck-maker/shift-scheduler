@@ -253,6 +253,11 @@ function messageFor(error) {
         return 'העובד משובץ למשמרת באחד מהתאריכים האלה'
     }
 
+    // Leave can't be added while a week is solving.
+    if (error.code === 'WRONG_STATUS') {
+        return 'מתבצעת כעת בניית סידור. יש להמתין לסיומה ולנסות שוב'
+    }
+
     if (error.status === 409) {
         return 'לעובד כבר רשומה היעדרות באחד מהתאריכים האלה'
     }

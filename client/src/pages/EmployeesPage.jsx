@@ -311,6 +311,11 @@ function messageFor(error, isNew) {
         return 'הפרטים שונו במקביל. רענן ונסה שוב'
     }
 
+    // Position and hours can't change while a week is solving.
+    if (error.code === 'WRONG_STATUS') {
+        return 'מתבצעת כעת בניית סידור. יש להמתין לסיומה ולנסות שוב'
+    }
+
     if (error.status === 409) {
         return 'כתובת הדוא״ל כבר רשומה במערכת'
     }

@@ -97,6 +97,15 @@ public class EmployeeService {
 
         requireCurrentVersion(employee, request.version());
 
+        // Blocks the change only when the position or the hours moved, since
+        // those are the fields the solver reads.
+        boolean solverFieldChanged = !employee.getJobPosition().getId().equals(request.jobPositionId())
+                || employee.getMaxWeeklyHours() != request.maxWeeklyHours();
+
+        if (solverFieldChanged) {
+            guard.requireNothingSolving();
+        }
+
         // Only the role can cost us a manager here now - being switched off is a
         // separate request, and that one does its own check.
         if (employee.getRole() == Role.MANAGER && request.role() != Role.MANAGER) {
