@@ -72,6 +72,23 @@ public class AuthService {
         return new LoginResult(issueToken(employee), user);
     }
 
+    // Reads the employee and not the token, so a role that changed since login
+    // reaches the screen.
+    @Transactional(readOnly = true)
+    public CurrentUser currentUser(Long employeeId) {
+        Employee employee = employeeRepository.findByIdAndActiveTrue(employeeId)
+                // The filter chain already refused a disabled or missing employee.
+                .orElseThrow(() -> new IllegalStateException(
+                        "Authenticated employee " + employeeId + " is gone"));
+
+        return new CurrentUser(
+                employee.getId(),
+                employee.getUsername(),
+                employee.getFullName(),
+                employee.getRole().name()
+        );
+    }
+
     // The token carries the id and the role, so a request does not have to
     // load the employee to know who is asking.
     private String issueToken(Employee employee) {
