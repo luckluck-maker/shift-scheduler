@@ -2,6 +2,7 @@ package com.shiftscheduler.repository;
 
 import com.shiftscheduler.domain.Assignment;
 import com.shiftscheduler.domain.ScheduleStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,9 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 
     List<Assignment> findByShiftId(Long shiftId);
 
+    // Loads the employee, the position and the shift in the same query, so
+    // building the roster doesn't run one query per assignment.
+    @EntityGraph(attributePaths = {"employee", "employee.jobPosition", "shift", "shift.shiftType"})
     List<Assignment> findByShiftScheduleIdOrderByShiftShiftDateAscIdAsc(Long scheduleId);
 
     List<Assignment> findByShiftScheduleIdAndEmployeeId(Long scheduleId, Long employeeId);
