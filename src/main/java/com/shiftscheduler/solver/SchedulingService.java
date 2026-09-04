@@ -9,7 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import ai.timefold.solver.core.api.solver.SolverStatus;
 
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 // Runs the solver on one week and stores the result.
 // Runs asynchronously: solve() hands the problem to SolverManager and returns "SOLVING"
@@ -26,6 +27,10 @@ public class SchedulingService {
     private final ScheduleGuard guard;
     private final SolvePhase phase;
 
+    // Keeps the last failure per week, since the solver runs on its own thread
+    // and only solve-status can hand the error back.
+    private final Map<Long, String> failures = new ConcurrentHashMap<>();
+
     public SchedulingService(SolverManager<EmployeeSchedule> solverManager,
                              ScheduleLoader loader,
                              ScheduleSaver saver,
@@ -40,6 +45,7 @@ public class SchedulingService {
     public SolveResponse solve(Long scheduleId) {
 
         phase.begin(scheduleId);
+        failures.remove(scheduleId);
 
         try {
             EmployeeSchedule problem = loader.load(scheduleId);
@@ -58,16 +64,12 @@ public class SchedulingService {
                     .withProblemId(scheduleId)
                     .withProblem(problem)
                     .withFinalBestSolutionEventConsumer(event -> onSolved(event.solution()))
-                    .withExceptionHandler((id, t) -> {
-                        log.error("Solving schedule " + id + " failed", t);
-                        phase.end(scheduleId);
-                    })
+                    .withExceptionHandler((id, t) -> fail(scheduleId, t))
                     .run();
 
             return new SolveResponse(
                     scheduleId, "SOLVING",
-                    problem.getSlots().size(), (int) pinned,
-                    0, 0, List.of());
+                    problem.getSlots().size(), (int) pinned);
 
         } catch (RuntimeException e) {
             // The solver never got the job, so put the week back here.
@@ -76,10 +78,19 @@ public class SchedulingService {
         }
     }
 
+    // Catches a failed save the same way as a solver error, since it happens on
+    // the solver's thread too.
     private void onSolved(EmployeeSchedule solution) {
-        int saved = saver.save(solution);
-        phase.end(solution.getScheduleId());
+        int saved;
 
+        try {
+            saved = saver.save(solution);
+        } catch (RuntimeException e) {
+            fail(solution.getScheduleId(), e);
+            return;
+        }
+
+        phase.end(solution.getScheduleId());
 
         long stillEmpty = solution.getSlots().stream()
                 .filter(slot -> slot.getEmployee() == null)
@@ -89,6 +100,12 @@ public class SchedulingService {
                 solution.getScheduleId(), solution.getScore(), saved, stillEmpty);
     }
 
+    // Sends the real reason to the log and keeps one fixed message for the screen.
+    private void fail(Long scheduleId, Throwable t) {
+        log.error("Solving schedule " + scheduleId + " failed", t);
+        failures.put(scheduleId, "The roster could not be built. Try again.");
+        phase.end(scheduleId);
+    }
 
     // The screen calls this every second while it shows the spinner.
     public SolveStatusResponse status(Long scheduleId) {
@@ -97,6 +114,7 @@ public class SchedulingService {
         return new SolveStatusResponse(
                 scheduleId,
                 status != SolverStatus.NOT_SOLVING,
-                status.name());
+                status.name(),
+                failures.get(scheduleId));
     }
 }
