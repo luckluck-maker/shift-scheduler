@@ -26,10 +26,11 @@ public class Employee {
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
 
-    @Column(nullable = false, unique = true, length = 120)
+    // An email address, 254 characters at most by RFC 5321.
+    @Column(nullable = false, unique = true, length = 254)
     private String username;
 
-    @Column(name = "password_hash", nullable = false, length = 100)
+    @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)

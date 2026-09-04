@@ -31,7 +31,8 @@ public class Assignment {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    // Manager confirmed the assignment even though it broke a rule.
+    // Marks an assignment the shift had no open slot for, so it is not counted
+    // in the coverage.
     @Column(name = "is_override", nullable = false)
     private boolean override;
 

@@ -46,6 +46,9 @@ docker compose up -d                                    # MySQL, Artemis, MailHo
 java -jar target/shift-scheduler-0.0.1-SNAPSHOT.jar
 ```
 
+On macOS or Linux, if the project arrived as a zip rather than a clone, run
+`chmod +x mvnw` first, since a zip does not keep the execute bit.
+
 Then open **<http://localhost:8080>**. Flyway creates the schema and loads the
 demo data on first start.
 
@@ -81,7 +84,7 @@ stateDiagram-v2
 |---|---|
 | **Collecting** | Employees submit constraints. The manager sets staffing levels. |
 | **Draft** | Submissions are closed. The solver can run, and the manager can assign people by hand. |
-| **Solving** | The solver is working. Nothing about the week can change until it finishes. |
+| **Solving** | The solver is working. The week is frozen, along with leave, positions, shift types, and each employee's position and hours. |
 | **Published** | The roster is out and everyone has been emailed. |
 
 A published week is never rolled back, because it is the record of what people
@@ -183,6 +186,12 @@ http/
   intellij/      request files for the IntelliJ HTTP Client
   vscode/        the same files for the VS Code REST Client
 ```
+
+## Known limitations
+
+Login is not rate limited. Every attempt costs an Argon2 hash, so a flood of
+attempts is the simplest way to load the server. A production deployment would
+put a limiter in front of `/api/auth/login`.
 
 ## License
 

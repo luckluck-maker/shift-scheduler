@@ -55,7 +55,7 @@ public class SecurityConfig {
                         // data; every value on screen comes from an API call that
                         // is still checked below.
                         .requestMatchers("/", "/index.html", "/favicon.ico",
-                                "/assets/**", "/vite.svg")
+                                "/assets/**", "/favicon.svg")
                         .permitAll()
 
                         // The client routes. Same list as SpaController, which
