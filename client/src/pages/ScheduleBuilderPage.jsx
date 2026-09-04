@@ -409,7 +409,7 @@ export default function ScheduleBuilderPage() {
                                 && ` · ${solveResult.missing} מקומות נותרו חסרים`}
 
                             {solveResult.deserted > 0
-                                && ` · ${solveResult.deserted} תפקידים ללא איוש כלל`}
+                                && ` · ${solveResult.deserted} תפקידים חיוניים ללא איוש`}
                         </p>
                     )}
 
