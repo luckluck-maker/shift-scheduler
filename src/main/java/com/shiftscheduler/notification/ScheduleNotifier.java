@@ -8,14 +8,14 @@ import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
 // Sends the emails after a week is published.
-// The publish request only puts the schedule id on a topic and returns, so
+// The publish request only puts the schedule id on a queue and returns, so
 // the manager isn't left waiting on the mail server.
 @Component
 public class ScheduleNotifier {
 
     private static final Logger log = LoggerFactory.getLogger(ScheduleNotifier.class);
 
-    public static final String TOPIC = "schedule.published";
+    public static final String QUEUE = "schedule.published";
 
     private final ScheduleRepository scheduleRepository;
     private final EmployeeMailer mailer;
@@ -26,7 +26,7 @@ public class ScheduleNotifier {
     }
 
     // The message holds the id, not the week itself, so it is loaded here.
-    @JmsListener(destination = TOPIC)
+    @JmsListener(destination = QUEUE)
     public void onSchedulePublished(Long scheduleId) {
         Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
 

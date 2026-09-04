@@ -24,7 +24,7 @@ public class RosterChangeNotifier {
 
     private static final Logger log = LoggerFactory.getLogger(RosterChangeNotifier.class);
 
-    public static final String TOPIC = "schedule.republished";
+    public static final String QUEUE = "schedule.republished";
 
     private final ScheduleRepository scheduleRepository;
     private final RosterChangeRepository rosterChangeRepository;
@@ -40,7 +40,7 @@ public class RosterChangeNotifier {
 
     // The message holds the id, not the week itself, so it is loaded here.
     // Transactional for the delete at the end.
-    @JmsListener(destination = TOPIC)
+    @JmsListener(destination = QUEUE)
     @Transactional
     public void onRepublished(Long scheduleId) {
         Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
@@ -54,8 +54,6 @@ public class RosterChangeNotifier {
 
         List<RosterChange> pending = rosterChangeRepository.findByScheduleId(scheduleId);
 
-        // Republish already checked that somebody is waiting. Disabling an employee
-        // deletes their rows, so the list can still be empty by the time this runs.
         // Republish already checked that somebody is waiting. Disabling an employee
         // deletes their rows, so the list can still be empty by the time this runs.
         if (pending.isEmpty()) {

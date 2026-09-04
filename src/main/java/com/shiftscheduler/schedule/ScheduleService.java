@@ -275,8 +275,7 @@ public class ScheduleService {
 
         schedule.setStatus(ScheduleStatus.PUBLISHED);
         guard.markChanged(schedule);
-
-        jmsTemplate.convertAndSend(ScheduleNotifier.TOPIC, id);
+        jmsTemplate.convertAndSend(ScheduleNotifier.QUEUE, id);
 
         return findById(id);
     }
@@ -295,8 +294,7 @@ public class ScheduleService {
         }
 
         guard.markChanged(schedule);
-
-        jmsTemplate.convertAndSend(RosterChangeNotifier.TOPIC, id);
+        jmsTemplate.convertAndSend(RosterChangeNotifier.QUEUE, id);
 
         return findById(id);
     }
