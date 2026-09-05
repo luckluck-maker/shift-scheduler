@@ -13,8 +13,7 @@
 ###      docker compose down -v
 ###      docker compose up -d      (wait for healthy)
 ###      restart the app           (Flyway rebuilds the schema on startup)
-###  Run the whole file at once, because nothing in it waits for a job or
-###  a solver to finish.
+###  Run the whole file at once
 ### ===========================================================
 
 
