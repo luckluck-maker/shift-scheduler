@@ -4,6 +4,7 @@ Weekly rostering for workplaces that run on shifts. Employees say when they
 cannot work, an optimization engine builds the week, and the manager fills in
 whatever it could not close.
 
+![build](https://github.com/sahar-avraham/shift-scheduler/actions/workflows/build.yml/badge.svg)
 ![Java 21](https://img.shields.io/badge/Java-21-b07219)
 ![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB)
