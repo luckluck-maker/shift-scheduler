@@ -66,6 +66,27 @@ three weeks covering the whole cycle — one published, one in draft, one open f
 constraints. `docker compose down -v && docker compose up -d` puts it back.
 Flyway only runs at startup, so restart the app afterwards.
 
+## Running it in Docker
+
+Needs only **Docker**. The app runs as a fourth container next to the three
+above:
+
+```bash
+docker compose --profile app up -d
+```
+
+The first run builds the image, which downloads Maven and Node and takes a few
+minutes. To skip that and use the image the build publishes on every push to
+`main`, pull it first:
+
+```bash
+docker compose pull app
+docker compose --profile app up -d
+```
+
+Then open **<http://localhost:8080>** as before. The app and the one started
+from the IDE both want port 8080, so run one or the other.
+
 ## How a week works
 
 Every week moves through the same states, and what you are allowed to do depends
@@ -104,6 +125,7 @@ and republishing emails just the people those changes affected.
 | [Spring Security](https://spring.io/projects/spring-security) | JWT in an HttpOnly cookie, Argon2, role checks |
 | [React](https://react.dev) 19, [Vite](https://vite.dev) | Single page app, plain JSX, hand written CSS |
 | [MailHog](https://github.com/mailhog/MailHog) | Catches outgoing mail in development |
+| Docker, [GitHub Actions](https://github.com/features/actions) | Every push builds and tests, and a green `main` publishes the image to `ghcr.io` |
 
 The solving is done by [Timefold](https://timefold.ai), an open source
 constraint solver (Apache-2.0). This project supplies the model and the rules —

@@ -1,0 +1,15 @@
+# Only what the build needs goes into the image build. Build output and
+# node_modules are rebuilt inside, and the rest is not used by the jar.
+target/
+client/node_modules/
+client/dist/
+.git/
+.github/
+.idea/
+.mvn/wrapper/maven-wrapper.jar
+docs/
+http/
+notes/
+Dockerfile
+docker-compose.yml
+*.md

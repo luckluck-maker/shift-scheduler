@@ -45,6 +45,33 @@ services:
     volumes:
       - artemis-data:/var/lib/artemis-instance
 
+  # The app itself, behind a profile so the plain "up" still brings only the
+  # three above and the app can run from the IDE. "--profile app" runs the
+  # whole thing in containers.
+  app:
+    profiles: ["app"]
+    build: .
+    image: ghcr.io/sahar-avraham/shift-scheduler:latest
+    container_name: shift-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # Inside the compose network the others are reached by service name.
+    # JWT_SECRET and APP_URL pass through from the host only when set there.
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/shift_scheduler?serverTimezone=UTC&characterEncoding=UTF-8
+      - SPRING_ARTEMIS_BROKER_URL=tcp://artemis:61616
+      - MAIL_HOST=mailhog
+      - JWT_SECRET
+      - APP_URL
+    depends_on:
+      mysql:
+        condition: service_healthy
+      artemis:
+        condition: service_started
+      mailhog:
+        condition: service_started
+
 volumes:
   mysql-data:
   artemis-data:
